@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:12:25
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-09-24 16:53:07
+ * @LastEditTime: 2021-10-10 19:45:31
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -11,28 +11,13 @@
 mod helper;
 mod parser;
 mod syntax;
+mod interp;
 
 pub use crate::syntax::Expr::{self, *};
 pub use crate::syntax::SymTable;
 use std::cell::RefCell;
 use std::rc::Rc;
-
-fn interp_exp(expr: Expr, env: Rc<RefCell<SymTable<String, i64>>>) -> i64 {
-    match expr {
-        Int(n) => n,
-        Var(x) => *env.borrow().lookup(&x),
-        Make(box Var(x), box e) => {
-            let val = interp_exp(e, Rc::clone(&env));
-            env.borrow_mut().bind(x, val);
-            0
-        },
-        Print(box data) => {
-            println!("{}", interp_exp(data, Rc::clone(&env)));
-            0
-        },
-        _ => panic!("bad syntax!"),
-    }
-}
+use interp::interp_exp;
 
 fn main() -> std::io::Result<()> {
     use parser::parse;

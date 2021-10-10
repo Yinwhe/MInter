@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:23:44
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-09-24 17:00:06
+ * @LastEditTime: 2021-10-10 20:06:45
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -58,13 +58,27 @@ pub fn is_digit(s: &str) -> bool {
     return true;
 }
 
+pub fn is_literal(s: &str) -> bool {
+    return s.starts_with("\"");
+}
+pub fn is_var(s: &str) -> bool {
+    return s.starts_with(":");
+}
+
 pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
     match sexpr {
         Atom(s) => {
             if is_digit(s) {
-                return Int(s.parse().unwrap());
-            } else {
-                return Var(s.to_string());
+                return Value(ValType::Int(s.parse().unwrap()));
+            }
+            else if is_literal(s) {
+                return Value(ValType::Str(s[1..].to_string()));
+            }
+            // else if is_var(s) {
+            //     return Var(s[1..].to_string());
+            // }
+            else {
+                panic!("Unregconized Atom");
             }
         }
         List(v) => match v.as_slice() {

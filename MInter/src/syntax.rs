@@ -2,21 +2,27 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-09-24 16:59:36
+ * @LastEditTime: 2021-10-10 20:16:16
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Expr {
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum ValType{
     Int(i64),
-    // Float(),
+    // Float(f64),
     Str(String),
     // List(),
-    // Boolean(),
+    // Boolean()
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Expr {
+    Value(ValType),
     Var(String),
     Make(Box<Expr>, Box<Expr>),
     Print(Box<Expr>),
+    Thing(Box<Expr>)
 }
 pub use Expr::*;
 
