@@ -2,10 +2,16 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-10-10 20:16:16
+ * @LastEditTime: 2021-10-11 15:12:53
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
+
+pub use Expr::*;
+use lazy_static::lazy_static;
+use std::collections::HashMap;
+use std::hash::Hash;
+use crate::hashmap;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum ValType{
@@ -22,12 +28,16 @@ pub enum Expr {
     Var(String),
     Make(Box<Expr>, Box<Expr>),
     Print(Box<Expr>),
-    Thing(Box<Expr>)
+    Thing(Box<Expr>),
+    Calc(String, Box<Expr>, Box<Expr>)
 }
-pub use Expr::*;
 
-use std::collections::HashMap;
-use std::hash::Hash;
+lazy_static!{
+    pub static ref VALID_OP: HashMap<&'static str, i32> = hashmap!("print" => 1, "thing" => 1,
+    "make" => 2, "add" => 2, "sub" => 2, "mul" => 2, "div" => 2, "mod" => 2);
+}
+
+
 
 #[derive(Debug)]
 pub struct SymTable<T, H>

@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:23:44
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-10-10 20:06:45
+ * @LastEditTime: 2021-10-11 15:20:57
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -14,13 +14,10 @@ pub enum Sexpr {
 }
 
 pub use Sexpr::{Atom, List};
-
 use crate::syntax::*;
 
-const valid_op: [&'static str; 2] = ["make", "print"];
-
 fn is_valid_op(op: &str) -> bool {
-    return valid_op.contains(&op);
+    return VALID_OP.contains_key(&op);
 }
 
 pub fn parse_list(expr: &str) -> Sexpr {
@@ -74,20 +71,40 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
             else if is_literal(s) {
                 return Value(ValType::Str(s[1..].to_string()));
             }
-            // else if is_var(s) {
-            //     return Var(s[1..].to_string());
-            // }
+            else if is_var(s) {
+                return Var(s[1..].to_string());
+            }
             else {
                 panic!("Unregconized Atom");
             }
         }
         List(v) => match v.as_slice() {
             // make
-            [Atom(op), Atom(var), val] if op.as_str() == "make" => {
-                Make(Box::new(Var(var.to_string())), Box::new(parse_sexpr(val)))
+            [Atom(op), param1, param2] => {
+                match op.as_str() {
+                    "make" => {
+                        Make(Box::new(parse_sexpr(param1)), Box::new(parse_sexpr(param2)))
+                    },
+                    "add" | "sub" | "mul" | "div" | "mod" => {
+                        Calc(op.to_string(), Box::new(parse_sexpr(param1)), Box::new(parse_sexpr(param2)))
+                    },
+                    _ => {
+                        panic!("Unrecognized List 3");
+                    }
+                }
             },
-            [Atom(op), data] if op.as_str() == "print" => {
-                Print(Box::new(parse_sexpr(data)))
+            [Atom(op), param] => {
+                match op.as_str() {
+                    "print" => {
+                        Print(Box::new(parse_sexpr(param)))
+                    },
+                    "thing" => {
+                        Thing(Box::new(parse_sexpr(param)))
+                    },
+                    _ => {
+                        panic!("Unrecognized List 2");
+                    }
+                }
             }
             _ => panic!("Invalid syntax!")
         }
