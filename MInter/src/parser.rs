@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:23:44
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-10-11 15:20:57
+ * @LastEditTime: 2021-10-12 19:50:39
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -13,35 +13,48 @@ pub enum Sexpr {
     List(Vec<Sexpr>),
 }
 
+
 pub use Sexpr::{Atom, List};
 use crate::syntax::*;
 
-fn is_valid_op(op: &str) -> bool {
-    return VALID_OP.contains_key(&op);
+fn is_valid_op(op: &str) -> Option<&i32> {
+    return VALID_OP.get(&op);
 }
+
 
 pub fn parse_list(expr: &str) -> Sexpr {
     let mut stack = vec![];
     let mut list = vec![];
+    let mut param_num = 0;
+    let mut param_stack = vec![];
 
     for word in expr.split(' ') {
-        if is_valid_op(word) {
-            stack.push(list);
-            list = vec![];
-            list.push(Atom(word.into()));
+        if let Some(&n) = is_valid_op(word) {
+            if n == 0 {
+                list.push(List(vec![Atom(word.into())]))
+            } else {
+                param_stack.push(param_num);
+                param_num = n;
+                stack.push(list);
+                list = vec![];
+                list.push(Atom(word.into()));
+            }
         } else {
             list.push(Atom(word.into()));
+            param_num -= 1;
+            if param_num <= 0 {
+                let mut nlist = stack.pop().unwrap();
+                param_num = param_stack.pop().unwrap();
+                if param_num == 0 {
+                    break;
+                }
+                nlist.push(List(list));
+                param_num -= 1;
+                list = nlist;
+            }
         }
     }
-
-    while let Some(mut nlist) = stack.pop() {
-        // The initially pushed empty vec shall be ignored
-        if !nlist.is_empty() {
-            nlist.push(List(list));
-            list = nlist;
-        }
-    }
-
+    
     List(list)
 }
 
@@ -89,7 +102,7 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                         Calc(op.to_string(), Box::new(parse_sexpr(param1)), Box::new(parse_sexpr(param2)))
                     },
                     _ => {
-                        panic!("Unrecognized List 3");
+                        panic!("Unrecognized List 2");
                     }
                 }
             },
@@ -102,7 +115,15 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                         Thing(Box::new(parse_sexpr(param)))
                     },
                     _ => {
-                        panic!("Unrecognized List 2");
+                        panic!("Unrecognized List 1");
+                    }
+                }
+            },
+            [Atom(op)] => {
+                match op.as_str() {
+                    "read" => Read(),
+                    _ => {
+                        panic!("Unrecognized List 0");
                     }
                 }
             }

@@ -2,12 +2,13 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-10-11 15:12:53
+ * @LastEditTime: 2021-10-12 19:33:30
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
 
 pub use Expr::*;
+pub use ValType::*;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -22,6 +23,15 @@ pub enum ValType{
     // Boolean()
 }
 
+impl Into<i64> for ValType {
+    fn into(self) -> i64 {
+        match self {
+            Int(i) => i,
+            Str(s) => s.parse().unwrap()
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expr {
     Value(ValType),
@@ -29,15 +39,16 @@ pub enum Expr {
     Make(Box<Expr>, Box<Expr>),
     Print(Box<Expr>),
     Thing(Box<Expr>),
-    Calc(String, Box<Expr>, Box<Expr>)
+    Calc(String, Box<Expr>, Box<Expr>),
+    Read()
 }
 
 lazy_static!{
-    pub static ref VALID_OP: HashMap<&'static str, i32> = hashmap!("print" => 1, "thing" => 1,
-    "make" => 2, "add" => 2, "sub" => 2, "mul" => 2, "div" => 2, "mod" => 2);
+    pub static ref VALID_OP: HashMap<&'static str, i32> = hashmap!(
+        "read" => 0,
+        "print" => 1, "thing" => 1,
+        "make" => 2, "add" => 2, "sub" => 2, "mul" => 2, "div" => 2, "mod" => 2);
 }
-
-
 
 #[derive(Debug)]
 pub struct SymTable<T, H>
