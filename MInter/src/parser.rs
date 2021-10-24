@@ -110,10 +110,13 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                 match op.as_str() {
                     "print" => {
                         Print(Box::new(parse_sexpr(param)))
-                    },
+                    }
                     "thing" => {
                         Thing(Box::new(parse_sexpr(param)))
-                    },
+                    }
+                    "erase" => {
+                        Erase(Box::new(parse_sexpr(param)))
+                    }
                     _ => {
                         panic!("Unrecognized List 1");
                     }

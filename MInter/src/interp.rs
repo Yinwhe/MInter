@@ -27,6 +27,14 @@ pub fn interp_exp(input: &mut std::io::Lines<Input<'_>>, expr: Expr, env: Rc<Ref
                 panic!("Make error, variable not a literal");
             }
         }
+        Erase(box n) => {
+            if let Value(ValType::Str(n)) = n {
+                env.borrow_mut().unbind(n);
+                ValType::Int(0)
+            } else {
+                panic!("Erase error, variable not a literal");
+            }
+        }
         Print(box data) => {
             let val = interp_exp(input, data, Rc::clone(&env));
             match &val {

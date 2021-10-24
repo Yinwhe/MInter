@@ -37,6 +37,7 @@ pub enum Expr {
     Value(ValType),
     Var(String),
     Make(Box<Expr>, Box<Expr>),
+    Erase(Box<Expr>),
     Print(Box<Expr>),
     Thing(Box<Expr>),
     Calc(String, Box<Expr>, Box<Expr>),
@@ -46,7 +47,7 @@ pub enum Expr {
 lazy_static!{
     pub static ref VALID_OP: HashMap<&'static str, i32> = hashmap!(
         "read" => 0,
-        "print" => 1, "thing" => 1,
+        "print" => 1, "thing" => 1, "erase" => 1,
         "make" => 2, "add" => 2, "sub" => 2, "mul" => 2, "div" => 2, "mod" => 2);
 }
 
@@ -80,5 +81,9 @@ where
 
     pub fn bind(&mut self, var: T, val: H) -> Option<H> {
         return self.map.insert(var, val);
+    }
+
+    pub fn unbind(&mut self, var: T) -> Option<H> {
+        return self.map.remove(&var);
     }
 }
