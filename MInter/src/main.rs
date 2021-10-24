@@ -8,40 +8,31 @@
  */
 #![feature(box_patterns)]
 extern crate lazy_static;
-extern crate simple_logger;
-extern crate log;
 
 mod helper;
 mod parser;
 mod syntax;
 mod interp;
+mod cmdin;
 
 pub use crate::syntax::Expr::{self, *};
 pub use crate::syntax::SymTable;
+pub use crate::cmdin::Input;
 
 use std::cell::RefCell;
+use std::io::BufRead;
 use std::rc::Rc;
 
-fn main() -> std::io::Result<()> {
+fn main() {
     use parser::parse;
     use interp::interp_exp;
-    use std::io::{self, Write};
-    use simple_logger::SimpleLogger;
-
-    SimpleLogger::new().env().init().unwrap();
-    let mut v = String::new();
+    
     let env = Rc::new(RefCell::new(SymTable::new()));
-    loop {
-        // input
-        print!("User> ");
-        io::stdout().flush()?;
-        io::stdin().read_line(&mut v)?;
-        v.pop(); // remove enter
-        // parse
+
+    let mut input = Input::file("../in").unwrap().lines();
+
+    while let Some(Ok(v)) = input.next() {
         let exp = parse(v.as_str());
-        v.clear();
-        // interpret
-        interp_exp(exp, Rc::clone(&env));
-        io::stdout().flush()?;
+        interp_exp(&mut input, exp, Rc::clone(&env));
     }
 }
