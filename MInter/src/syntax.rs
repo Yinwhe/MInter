@@ -20,7 +20,7 @@ pub enum ValType{
     Int(i64),
     // Float(f64) // I won't implement this I guess.
     Str(String),
-    List(Vec<ValType>),
+    List(Vec<ValType>), // Honestly, I treat list as a string. (I'm lazy!)
     Boolean(bool)
 }
 
@@ -54,6 +54,7 @@ pub enum Expr {
     Erase(Box<Expr>),
     Print(Box<Expr>),
     Thing(Box<Expr>),
+    Run(Box<Expr>),
     Calc(String, Box<Expr>, Box<Expr>),
     Read()
 }
@@ -61,7 +62,7 @@ pub enum Expr {
 lazy_static!{
     pub static ref VALID_OP: HashMap<&'static str, i32> = hashmap!(
         "read" => 0,
-        "print" => 1, "thing" => 1, "erase" => 1,
+        "print" => 1, "thing" => 1, "erase" => 1, "run" => 1,
         "make" => 2, "add" => 2, "sub" => 2, "mul" => 2, "div" => 2, "mod" => 2);
 }
 

@@ -9,6 +9,7 @@
 
 
 use crate::Input;
+use crate::parser::*;
 pub use crate::syntax::Expr::{self, *};
 pub use crate::syntax::*;
 use std::cell::RefCell;
@@ -57,7 +58,14 @@ pub fn interp_exp(input: &mut std::io::Lines<Input<'_>>, expr: Expr, env: Rc<Ref
             if let ValType::Str(v) = interp_exp(input, data, Rc::clone(&env)) {
                 env.borrow().lookup(&v).clone()
             } else {
-                panic!("Thing error, variable illegal");
+                panic!("Thing error, illegal variable");
+            }
+        }
+        Run(box cmd) => {
+            if let Value(ValType::Str(c)) = cmd {
+                unimplemented!()
+            } else {
+                panic!("Run error, illegal cmd list")
             }
         }
         Calc(op, box n1, box n2) => {
