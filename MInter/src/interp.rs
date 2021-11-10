@@ -44,6 +44,12 @@ pub fn interp_exp(input: &mut std::io::Lines<Input<'_>>, expr: Expr, env: Rc<Ref
                 ValType::Str(str) => {
                     println!("{}", str);
                 },
+                ValType::Boolean(b) => {
+                    println!("{}", b);
+                },
+                ValType::List(_list) => {
+                    unreachable!() // Not supported yet
+                }
             }
             val
         }

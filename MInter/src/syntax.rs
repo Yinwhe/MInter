@@ -10,6 +10,7 @@
 pub use Expr::*;
 pub use ValType::*;
 use lazy_static::lazy_static;
+use core::panic;
 use std::collections::HashMap;
 use std::hash::Hash;
 use crate::hashmap;
@@ -17,17 +18,30 @@ use crate::hashmap;
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum ValType{
     Int(i64),
-    // Float(f64),
+    // Float(f64) // I won't implement this I guess.
     Str(String),
-    // List(),
-    // Boolean()
+    List(Vec<ValType>),
+    Boolean(bool)
 }
 
 impl Into<i64> for ValType {
     fn into(self) -> i64 {
         match self {
             Int(i) => i,
-            Str(s) => s.parse().unwrap()
+            Str(s) => s.parse().unwrap(),
+            Boolean(b) => b as i64,
+            List(_) => unreachable!() // Not supported
+        }
+    }
+}
+
+impl Into<String> for ValType {
+    fn into(self) -> String {
+        match self {
+            Int(i) => i.to_string(),
+            Str(s) => s.clone(),
+            Boolean(b) => b.to_string(),
+            List(_) => unreachable!() // Not supported
         }
     }
 }

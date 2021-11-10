@@ -34,8 +34,7 @@ fn main() {
     match file {
         Some(filename) => {
             let mut input = Input::file(&filename).unwrap().lines();
-            while let Some(Ok(v)) = input.next() {
-                let exp = parse(v.as_str());
+            while let exp = parse(&mut input) {
                 interp_exp(&mut input, exp, Rc::clone(&env));
             }
             exit(0);
@@ -48,8 +47,7 @@ fn main() {
                 std::io::stdout()
                     .flush()
                     .expect("Fatal error! Stdout flush fails!");
-                if let Some(Ok(v)) = input.next() {
-                    let exp = parse(v.as_str());
+                if let exp = parse(&mut input) {
                     interp_exp(&mut input, exp, Rc::clone(&env));
                 } else {
                     exit(0);

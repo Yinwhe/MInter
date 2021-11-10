@@ -13,48 +13,56 @@ pub enum Sexpr {
     List(Vec<Sexpr>),
 }
 
-
-pub use Sexpr::{Atom, List};
 use crate::syntax::*;
+use crate::Input;
+pub use Sexpr::{Atom, List};
 
 fn is_valid_op(op: &str) -> Option<&i32> {
     return VALID_OP.get(&op);
 }
 
-
-pub fn parse_list(expr: &str) -> Sexpr {
+pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Sexpr {
     let mut stack = vec![];
     let mut list = vec![];
     let mut param_num = 0;
     let mut param_stack = vec![];
 
-    for word in expr.split(' ') {
-        if let Some(&n) = is_valid_op(word) {
-            if n == 0 {
-                list.push(List(vec![Atom(word.into())]))
-            } else {
-                param_stack.push(param_num);
-                param_num = n;
-                stack.push(list);
-                list = vec![];
-                list.push(Atom(word.into()));
+    loop {
+        if let Some(Ok(expr)) = input.next() {
+            for word in expr.split(' ') {
+                if let Some(&n) = is_valid_op(word) {
+                    if n == 0 {
+                        list.push(List(vec![Atom(word.into())]))
+                    } else {
+                        param_stack.push(param_num);
+                        param_num = n;
+                        stack.push(list);
+                        list = vec![];
+                        list.push(Atom(word.into()));
+                    }
+                } else {
+                    list.push(Atom(word.into()));
+                    param_num -= 1;
+                    if param_num <= 0 {
+                        let mut nlist = stack.pop().unwrap();
+                        param_num = param_stack.pop().unwrap();
+                        if param_num == 0 {
+                            break;
+                        }
+                        nlist.push(List(list));
+                        param_num -= 1;
+                        list = nlist;
+                    }
+                }
+            }
+
+            if param_num == 0 && param_stack.is_empty() {
+                break; // Jump out of loop
             }
         } else {
-            list.push(Atom(word.into()));
-            param_num -= 1;
-            if param_num <= 0 {
-                let mut nlist = stack.pop().unwrap();
-                param_num = param_stack.pop().unwrap();
-                if param_num == 0 {
-                    break;
-                }
-                nlist.push(List(list));
-                param_num -= 1;
-                list = nlist;
-            }
+            break; // Jump out of loop
         }
     }
-    
     List(list)
 }
 
@@ -80,63 +88,48 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
         Atom(s) => {
             if is_digit(s) {
                 return Value(ValType::Int(s.parse().unwrap()));
-            }
-            else if is_literal(s) {
+            } else if is_literal(s) {
                 return Value(ValType::Str(s[1..].to_string()));
-            }
-            else if is_var(s) {
+            } else if is_var(s) {
                 return Var(s[1..].to_string());
-            }
-            else {
+            } else {
                 panic!("Unregconized Atom");
             }
         }
         List(v) => match v.as_slice() {
             // make
-            [Atom(op), param1, param2] => {
-                match op.as_str() {
-                    "make" => {
-                        Make(Box::new(parse_sexpr(param1)), Box::new(parse_sexpr(param2)))
-                    },
-                    "add" | "sub" | "mul" | "div" | "mod" => {
-                        Calc(op.to_string(), Box::new(parse_sexpr(param1)), Box::new(parse_sexpr(param2)))
-                    },
-                    _ => {
-                        panic!("Unrecognized List 2");
-                    }
+            [Atom(op), param1, param2] => match op.as_str() {
+                "make" => Make(Box::new(parse_sexpr(param1)), Box::new(parse_sexpr(param2))),
+                "add" | "sub" | "mul" | "div" | "mod" => Calc(
+                    op.to_string(),
+                    Box::new(parse_sexpr(param1)),
+                    Box::new(parse_sexpr(param2)),
+                ),
+                _ => {
+                    panic!("Unrecognized List 2");
                 }
             },
-            [Atom(op), param] => {
-                match op.as_str() {
-                    "print" => {
-                        Print(Box::new(parse_sexpr(param)))
-                    }
-                    "thing" => {
-                        Thing(Box::new(parse_sexpr(param)))
-                    }
-                    "erase" => {
-                        Erase(Box::new(parse_sexpr(param)))
-                    }
-                    _ => {
-                        panic!("Unrecognized List 1");
-                    }
+            [Atom(op), param] => match op.as_str() {
+                "print" => Print(Box::new(parse_sexpr(param))),
+                "thing" => Thing(Box::new(parse_sexpr(param))),
+                "erase" => Erase(Box::new(parse_sexpr(param))),
+                _ => {
+                    panic!("Unrecognized List 1");
                 }
             },
-            [Atom(op)] => {
-                match op.as_str() {
-                    "read" => Read(),
-                    _ => {
-                        panic!("Unrecognized List 0");
-                    }
+            [Atom(op)] => match op.as_str() {
+                "read" => Read(),
+                _ => {
+                    panic!("Unrecognized List 0");
                 }
-            }
-            _ => panic!("Invalid syntax!")
-        }
+            },
+            _ => panic!("Invalid syntax!"),
+        },
     }
 }
 
-pub fn parse(expr: &str) -> Expr {
-    let sexpr = parse_list(expr);
+pub fn parse(input: &mut std::io::Lines<Input<'_>>) -> Expr {
+    let sexpr = parse_list(input);
     let expr = parse_sexpr(&sexpr);
     return expr;
 }
