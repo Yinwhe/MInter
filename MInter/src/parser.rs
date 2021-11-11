@@ -32,18 +32,25 @@ pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Option<Sexpr> {
     let mut literal = String::new(); // String to store a list
     let mut braket_num = 0; // Used to read list.
 
-    while let Some(Ok(expr)) = input.next() {
+    let mut atom: bool;
+
+    'ReadWhile: while let Some(Ok(expr)) = input.next() {
         for word in expr.split_whitespace() {
             if let Some(&n) = is_valid_op(word) {
-                if n == 0 {
-                    list.push(List(vec![Atom(word.into())]))
-                } else {
-                    param_stack.push(param_num);
-                    param_num = n;
-                    stack.push(list);
-                    list = vec![];
-                    list.push(Atom(word.into()));
-                }
+                // When needed parameter's number is zeor
+                // the op shall be taken as an atom
+                atom = n <= 0;
+
+                param_stack.push(param_num);
+                param_num = n;
+                stack.push(list);
+                list = vec![];
+            } else {
+                atom = true;
+            }
+
+            if !atom {
+                list.push(Atom(word.into()));
             } else {
                 // Check list first
                 if word.starts_with("[") {
@@ -72,30 +79,22 @@ pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Option<Sexpr> {
                     }
 
                     param_num -= 1;
-                    if param_num <= 0 {
+                    while param_num <= 0 {
                         let mut nlist = stack.pop().unwrap();
                         param_num = param_stack.pop().unwrap();
-                        if param_num == 0 {
-                            break; // Jump out of for_loop
-                        }
-                        nlist.push(List(list));
                         param_num -= 1;
+                        nlist.push(List(list));
                         list = nlist;
+                        if param_stack.is_empty() {
+                            break 'ReadWhile; // Jump out of the loop
+                        }
                     }
                 }
             }
-        }
+        } // For
+    } // While
 
-        if param_num == 0 && param_stack.is_empty() {
-            break; // Already read in a command, jump out of loop
-        }
-    }
-    // println!("debug - {:?}", list);
-    if list.is_empty() { // Empty means read to the end
-        None
-    } else {
-        Some(List(list))
-    }
+    list.pop()
 }
 
 pub fn is_digit(s: &str) -> bool {
@@ -153,6 +152,10 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                 "thing" => Thing(Box::new(parse_sexpr(param))),
                 "erase" => Erase(Box::new(parse_sexpr(param))),
                 "run"   => Run(Box::new(parse_sexpr(param))),
+                "isname" | "isnumber" | "isword" | "islist" | "isbool" | "isempty" => Judge(
+                    op.to_string(),
+                    Box::new(parse_sexpr(param))
+                ),
                 _ => {
                     panic!("Unrecognized List 1");
                 }
@@ -172,6 +175,8 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
 pub fn parse(input: &mut std::io::Lines<Input<'_>>) -> Option<Expr> {
     if let Some(sexpr) = parse_list(input) {
         let expr = parse_sexpr(&sexpr);
+        // println!("Sexpr Debug - {:?}", sexpr);
+        // println!("Expr Debug - {:?}", expr);
         return Some(expr);
     } else {
         return None;

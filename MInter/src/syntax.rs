@@ -10,7 +10,6 @@
 pub use Expr::*;
 pub use ValType::*;
 use lazy_static::lazy_static;
-use core::panic;
 use std::collections::HashMap;
 use std::hash::Hash;
 use crate::hashmap;
@@ -48,22 +47,36 @@ impl Into<String> for ValType {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expr {
+    // Variables
     Value(ValType),
     Var(String),
-    Make(Box<Expr>, Box<Expr>),
+    // Operation
+    Read(),
     Erase(Box<Expr>),
     Print(Box<Expr>),
     Thing(Box<Expr>),
     Run(Box<Expr>),
+    // Not(Box<Expr>),
+    Judge(String, Box<Expr>),
+    Make(Box<Expr>, Box<Expr>),
+    // Comp(String, Box<Expr>, Box<Expr>),
     Calc(String, Box<Expr>, Box<Expr>),
-    Read()
+    // Logic(String, Box<Expr>, Box<Expr>),
+    // If(Box<Expr>,Box<Expr>,Box<Expr>),
 }
 
 lazy_static!{
     pub static ref VALID_OP: HashMap<&'static str, i32> = hashmap!(
         "read" => 0,
         "print" => 1, "thing" => 1, "erase" => 1, "run" => 1,
-        "make" => 2, "add" => 2, "sub" => 2, "mul" => 2, "div" => 2, "mod" => 2);
+        "isname" => 1, "isnumber" => 1, "isword" => 1, "islist" => 1, "isbool" => 1, "isempty" => 1,
+        "not" => 1,
+        "and" => 2, "or" => 2,
+        "eq" => 2, "gt" => 2, "lt" => 2,
+        "add" => 2, "sub" => 2, "mul" => 2, "div" => 2, "mod" => 2,
+        "make" => 2,
+        "if" => 3
+    );
 }
 
 #[derive(Debug)]
@@ -86,6 +99,11 @@ where
             map: HashMap::new(),
         }
     }
+
+    pub fn exist(&self, x: &T) -> bool {
+        self.map.get(x).is_some()
+    }
+
     pub fn lookup(&self, x: &T) -> &H {
         if let Some(h) = self.map.get(x) {
             return h;

@@ -7,7 +7,7 @@
  * @Copyright: Copyright (c) 2021
  */
 
-use crate::parser::parse;
+use crate::parser::{is_digit, parse};
 pub use crate::syntax::Expr::{self, *};
 pub use crate::syntax::*;
 use crate::Input;
@@ -75,6 +75,14 @@ pub fn interp_exp(
                 }
             } else {
                 panic!("Run error, illegal cmd list")
+            }
+        }
+        Judge(op, box value) => {
+            let val: String = interp_exp(input, value, Rc::clone(&env)).into();
+            match op.as_str() {
+                "isname" => ValType::Boolean(env.borrow().exist(&val)),
+                "isnumber" => ValType::Boolean(is_digit(&val)),
+                _ => panic!("Judge error, illegal operator")
             }
         }
         Calc(op, box n1, box n2) => {
