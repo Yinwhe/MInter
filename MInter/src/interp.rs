@@ -7,15 +7,19 @@
  * @Copyright: Copyright (c) 2021
  */
 
-
-use crate::Input;
-use crate::parser::*;
+use crate::parser::parse;
 pub use crate::syntax::Expr::{self, *};
 pub use crate::syntax::*;
+use crate::Input;
 use std::cell::RefCell;
+use std::io::BufRead;
 use std::rc::Rc;
 
-pub fn interp_exp(input: &mut std::io::Lines<Input<'_>>, expr: Expr, env: Rc<RefCell<SymTable<String, ValType>>>) -> ValType {
+pub fn interp_exp(
+    input: &mut std::io::Lines<Input<'_>>,
+    expr: Expr,
+    env: Rc<RefCell<SymTable<String, ValType>>>,
+) -> ValType {
     match expr {
         Value(v) => v,
         Var(x) => env.borrow().lookup(&x).clone(),
@@ -41,13 +45,13 @@ pub fn interp_exp(input: &mut std::io::Lines<Input<'_>>, expr: Expr, env: Rc<Ref
             match &val {
                 ValType::Int(n) => {
                     println!("{}", n);
-                },
+                }
                 ValType::Str(str) => {
                     println!("{}", str);
-                },
+                }
                 ValType::Boolean(b) => {
                     println!("{}", b);
-                },
+                }
                 ValType::List(_list) => {
                     unreachable!() // Not supported yet
                 }
@@ -62,8 +66,13 @@ pub fn interp_exp(input: &mut std::io::Lines<Input<'_>>, expr: Expr, env: Rc<Ref
             }
         }
         Run(box cmd) => {
-            if let Value(ValType::Str(c)) = cmd {
-                unimplemented!()
+            if let ValType::Str(c) = interp_exp(input, cmd, Rc::clone(&env)) {
+                let mut input = Input::string(c.trim_matches(|c| c == '[' || c == ']')).lines();
+                if let Some(exp) = parse(&mut input) {
+                    interp_exp(&mut input, exp, Rc::clone(&env))
+                } else {
+                    panic!("Run error, illegal cmd list")
+                }
             } else {
                 panic!("Run error, illegal cmd list")
             }

@@ -22,7 +22,7 @@ fn is_valid_op(op: &str) -> Option<&i32> {
 }
 
 // Read one whole command a time
-pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Sexpr {
+pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Option<Sexpr> {
     let mut stack = vec![];
     let mut list = vec![];
 
@@ -91,7 +91,11 @@ pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Sexpr {
         }
     }
     // println!("debug - {:?}", list);
-    List(list)
+    if list.is_empty() { // Empty means read to the end
+        None
+    } else {
+        Some(List(list))
+    }
 }
 
 pub fn is_digit(s: &str) -> bool {
@@ -165,8 +169,11 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
     }
 }
 
-pub fn parse(input: &mut std::io::Lines<Input<'_>>) -> Expr {
-    let sexpr = parse_list(input);
-    let expr = parse_sexpr(&sexpr);
-    return expr;
+pub fn parse(input: &mut std::io::Lines<Input<'_>>) -> Option<Expr> {
+    if let Some(sexpr) = parse_list(input) {
+        let expr = parse_sexpr(&sexpr);
+        return Some(expr);
+    } else {
+        return None;
+    }
 }

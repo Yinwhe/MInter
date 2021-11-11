@@ -17,6 +17,12 @@ impl<'a> Input<'a> {
             source: Box::new(io::BufReader::new(file)),
         })
     }
+
+    pub fn string(content: &'a str) -> Input<'a> {
+        Input {
+            source: Box::new(content.clone().as_bytes())
+        }
+    }
 }
 
 impl<'a> Read for Input<'a> {

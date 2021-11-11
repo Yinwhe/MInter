@@ -25,8 +25,8 @@ use std::process::exit;
 use std::rc::Rc;
 
 fn main() {
-    use interp::interp_exp;
-    use parser::parse;
+    use crate::interp::interp_exp;
+    use crate::parser::parse;
 
     let env = Rc::new(RefCell::new(SymTable::new()));
 
@@ -34,7 +34,7 @@ fn main() {
     match file {
         Some(filename) => {
             let mut input = Input::file(&filename).unwrap().lines();
-            while let exp = parse(&mut input) {
+            while let Some(exp) = parse(&mut input) {
                 interp_exp(&mut input, exp, Rc::clone(&env));
             }
             exit(0);
@@ -47,7 +47,7 @@ fn main() {
                 std::io::stdout()
                     .flush()
                     .expect("Fatal error! Stdout flush fails!");
-                if let exp = parse(&mut input) {
+                if let Some(exp) = parse(&mut input) {
                     interp_exp(&mut input, exp, Rc::clone(&env));
                 } else {
                     exit(0);
