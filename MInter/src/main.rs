@@ -34,10 +34,15 @@ fn main() {
     match file {
         Some(filename) => {
             let mut input = Input::file(&filename).unwrap().lines();
-            while let Some(exp) = parse(&mut input) {
-                interp_exp(&mut input, exp, Rc::clone(&env));
+            loop {
+                let exps = parse(&mut input);
+                if exps.is_empty() {
+                    exit(0);
+                }
+                exps.into_iter()
+                    .map(|exp| interp_exp(&mut input, exp, Rc::clone(&env)))
+                    .last();
             }
-            exit(0);
         }
         None => {
             let stdin = std::io::stdin();
@@ -47,11 +52,10 @@ fn main() {
                 std::io::stdout()
                     .flush()
                     .expect("Fatal error! Stdout flush fails!");
-                if let Some(exp) = parse(&mut input) {
-                    interp_exp(&mut input, exp, Rc::clone(&env));
-                } else {
-                    exit(0);
-                }
+                parse(&mut input)
+                    .into_iter()
+                    .map(|exp| interp_exp(&mut input, exp, Rc::clone(&env)))
+                    .last();
             }
         }
     }

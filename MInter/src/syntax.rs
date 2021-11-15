@@ -50,19 +50,19 @@ pub enum Expr {
     // Variables
     Value(ValType),
     Var(String),
+
     // Operation
     Read(),
     Erase(Box<Expr>),
     Print(Box<Expr>),
     Thing(Box<Expr>),
     Run(Box<Expr>),
-    // Not(Box<Expr>),
     Judge(String, Box<Expr>),
     Make(Box<Expr>, Box<Expr>),
-    // Comp(String, Box<Expr>, Box<Expr>),
+    Comp(String, Box<Expr>, Box<Expr>),
     Calc(String, Box<Expr>, Box<Expr>),
-    // Logic(String, Box<Expr>, Box<Expr>),
-    // If(Box<Expr>,Box<Expr>,Box<Expr>),
+    Logic(String, Box<Expr>, Box<Expr>),
+    If(Box<Expr>,Box<Expr>,Box<Expr>),
 }
 
 lazy_static!{
@@ -77,6 +77,7 @@ lazy_static!{
         "make" => 2,
         "if" => 3
     );
+    // pub static ref FUNC_NAME: HashMap<&'static str>
 }
 
 #[derive(Debug)]

@@ -22,7 +22,7 @@ fn is_valid_op(op: &str) -> Option<&i32> {
 }
 
 // Read one whole command a time
-pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Option<Sexpr> {
+pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Vec<Sexpr> {
     let mut stack = vec![];
     let mut list = vec![];
 
@@ -34,7 +34,7 @@ pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Option<Sexpr> {
 
     let mut atom: bool;
 
-    'ReadWhile: while let Some(Ok(expr)) = input.next() {
+    while let Some(Ok(expr)) = input.next() {
         for word in expr.split_whitespace() {
             if let Some(&n) = is_valid_op(word) {
                 // When needed parameter's number is zeor
@@ -78,23 +78,31 @@ pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Option<Sexpr> {
                         list.push(Atom(word.into()));
                     }
 
+                    if param_num == 0 {
+                        // Value input
+                        continue;
+                    }
+
                     param_num -= 1;
-                    while param_num <= 0 {
+                    while param_num == 0 {
                         let mut nlist = stack.pop().unwrap();
                         param_num = param_stack.pop().unwrap();
-                        param_num -= 1;
                         nlist.push(List(list));
                         list = nlist;
                         if param_stack.is_empty() {
-                            break 'ReadWhile; // Jump out of the loop
+                            break;
                         }
+                        param_num -= 1;
                     }
                 }
             }
         } // For
+        if param_stack.is_empty() {
+            break; // Jump out of the loop
+        }
     } // While
-
-    list.pop()
+    // println!("{:?}", list);
+    list
 }
 
 pub fn is_digit(s: &str) -> bool {
@@ -134,10 +142,29 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
             }
         }
         List(v) => match v.as_slice() {
+            // 3 parameters
+            [Atom(op), param1, param2, param3] => match op.as_str() {
+                "if" => If(
+                    Box::new(parse_sexpr(param1)),
+                    Box::new(parse_sexpr(param2)),
+                    Box::new(parse_sexpr(param3)),
+                ),
+                _ => panic!("Unrecognized List 3"),
+            },
             // 2 parameters
             [Atom(op), param1, param2] => match op.as_str() {
                 "make" => Make(Box::new(parse_sexpr(param1)), Box::new(parse_sexpr(param2))),
                 "add" | "sub" | "mul" | "div" | "mod" => Calc(
+                    op.to_string(),
+                    Box::new(parse_sexpr(param1)),
+                    Box::new(parse_sexpr(param2)),
+                ),
+                "eq" | "gt" | "lt" => Comp(
+                    op.to_string(),
+                    Box::new(parse_sexpr(param1)),
+                    Box::new(parse_sexpr(param2)),
+                ),
+                "and" | "or" => Logic(
                     op.to_string(),
                     Box::new(parse_sexpr(param1)),
                     Box::new(parse_sexpr(param2)),
@@ -151,11 +178,15 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                 "print" => Print(Box::new(parse_sexpr(param))),
                 "thing" => Thing(Box::new(parse_sexpr(param))),
                 "erase" => Erase(Box::new(parse_sexpr(param))),
-                "run"   => Run(Box::new(parse_sexpr(param))),
-                "isname" | "isnumber" | "isword" | "islist" | "isbool" | "isempty" => Judge(
-                    op.to_string(),
-                    Box::new(parse_sexpr(param))
+                "run" => Run(Box::new(parse_sexpr(param))),
+                "not" => Logic(
+                    "not".to_string(),
+                    Box::new(parse_sexpr(param)),
+                    Box::new(Value(ValType::Boolean(true))),
                 ),
+                "isname" | "isnumber" | "isword" | "islist" | "isbool" | "isempty" => {
+                    Judge(op.to_string(), Box::new(parse_sexpr(param)))
+                }
                 _ => {
                     panic!("Unrecognized List 1");
                 }
@@ -172,13 +203,16 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
     }
 }
 
-pub fn parse(input: &mut std::io::Lines<Input<'_>>) -> Option<Expr> {
-    if let Some(sexpr) = parse_list(input) {
-        let expr = parse_sexpr(&sexpr);
-        // println!("Sexpr Debug - {:?}", sexpr);
-        // println!("Expr Debug - {:?}", expr);
-        return Some(expr);
-    } else {
-        return None;
-    }
+pub fn parse(input: &mut std::io::Lines<Input<'_>>) -> Vec<Expr> {
+    // let sexprs = parse_list(input)
+    //     .iter()
+    //     .map(|sexpr| parse_sexpr(sexpr))
+    //     .collect();
+    // println!("sexpr - {:?}", sexprs);
+    // return sexprs;
+
+    parse_list(input)
+        .iter()
+        .map(|sexpr| parse_sexpr(sexpr))
+        .collect()
 }

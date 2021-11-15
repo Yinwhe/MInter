@@ -68,11 +68,11 @@ pub fn interp_exp(
         Run(box cmd) => {
             if let ValType::Str(c) = interp_exp(input, cmd, Rc::clone(&env)) {
                 let mut input = Input::string(c.trim_matches(|c| c == '[' || c == ']')).lines();
-                if let Some(exp) = parse(&mut input) {
-                    interp_exp(&mut input, exp, Rc::clone(&env))
-                } else {
-                    panic!("Run error, illegal cmd list")
-                }
+                let exps = parse(&mut input);
+                exps.into_iter()
+                    .map(|exp| interp_exp(&mut input, exp, Rc::clone(&env)))
+                    .last()
+                    .unwrap()
             } else {
                 panic!("Run error, illegal cmd list")
             }
@@ -82,7 +82,7 @@ pub fn interp_exp(
             match op.as_str() {
                 "isname" => ValType::Boolean(env.borrow().exist(&val)),
                 "isnumber" => ValType::Boolean(is_digit(&val)),
-                _ => panic!("Judge error, illegal operator")
+                _ => panic!("Judge error, illegal operator"),
             }
         }
         Calc(op, box n1, box n2) => {
@@ -95,6 +95,42 @@ pub fn interp_exp(
                 "div" => ValType::Str((v1 as f64 / v2 as f64).to_string()),
                 "mod" => ValType::Int(v1 % v2),
                 _ => panic!("Calc error, illegal operator"),
+            }
+        }
+        Comp(op, box n1, box n2) => {
+            let v1: i64 = interp_exp(input, n1, Rc::clone(&env)).into();
+            let v2: i64 = interp_exp(input, n2, Rc::clone(&env)).into();
+            match op.as_str() {
+                "eq" => ValType::Boolean(v1 == v2),
+                "gt" => ValType::Boolean(v1 > v2),
+                "lt" => ValType::Boolean(v1 < v2),
+                _ => panic!("Comp error, illegal operator"),
+            }
+        }
+        Logic(op, box n1, box n2) => {
+            if let (ValType::Boolean(b1), ValType::Boolean(b2)) = (
+                interp_exp(input, n1, Rc::clone(&env)),
+                interp_exp(input, n2, Rc::clone(&env)),
+            ) {
+                match op.as_str() {
+                    "and" => ValType::Boolean(b1 && b2),
+                    "or" => ValType::Boolean(b1 || b2),
+                    "not" => ValType::Boolean(!b1),
+                    _ => panic!("Logic error, illegal operator"),
+                }
+            } else {
+                panic!("Logic error, not boolean input")
+            }
+        }
+        If(box b, r1, r2) => {
+            if let ValType::Boolean(b) = interp_exp(input, b, Rc::clone(&env)) {
+                if b {
+                    interp_exp(input, Run(r1), Rc::clone(&env))
+                } else {
+                    interp_exp(input, Run(r2), Rc::clone(&env))
+                }
+            } else {
+                panic!("If error, condition not boolean")
             }
         }
         Read() => {
