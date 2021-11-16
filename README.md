@@ -2,12 +2,12 @@
 Project for PPL course.
 
 ## Build
-```rust
+```bash
 cargo build
 ```
 
 ## Run
-```rust
+```bash
 cargo run // Interactive
 
 cargo run <file> // Read in file
