@@ -2,25 +2,34 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-10-12 19:33:30
+ * @LastEditTime: 2021-11-16 21:19:00
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
 
 pub use Expr::*;
 pub use ValType::*;
+
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::sync::Mutex;
 use crate::hashmap;
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum ListType {
+    Ordinary,
+    Function(String, String),
+    Closure,
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum ValType{
     Int(i64),
     // Float(f64) // I won't implement this I guess.
     Str(String),
-    List(Vec<ValType>), // Honestly, I treat list as a string. (I'm lazy!)
-    Boolean(bool)
+    Boolean(bool),
+    List(String, ListType)
 }
 
 impl Into<i64> for ValType {
@@ -29,7 +38,7 @@ impl Into<i64> for ValType {
             Int(i) => i,
             Str(s) => s.parse().unwrap(),
             Boolean(b) => b as i64,
-            List(_) => unreachable!() // Not supported
+            List(_, _) => unimplemented!() // Not supported
         }
     }
 }
@@ -40,7 +49,7 @@ impl Into<String> for ValType {
             Int(i) => i.to_string(),
             Str(s) => s.clone(),
             Boolean(b) => b.to_string(),
-            List(_) => unreachable!() // Not supported
+            List(value, _) => value.clone()
         }
     }
 }
@@ -62,11 +71,12 @@ pub enum Expr {
     Comp(String, Box<Expr>, Box<Expr>),
     Calc(String, Box<Expr>, Box<Expr>),
     Logic(String, Box<Expr>, Box<Expr>),
-    If(Box<Expr>,Box<Expr>,Box<Expr>),
+    If(Box<Expr>, Box<Expr>, Box<Expr>),
+    
+    Function(String, Vec<Expr>)
 }
-
 lazy_static!{
-    pub static ref VALID_OP: HashMap<&'static str, i32> = hashmap!(
+    pub static ref KEYWORD: HashMap<&'static str, i32> = hashmap!(
         "read" => 0,
         "print" => 1, "thing" => 1, "erase" => 1, "run" => 1,
         "isname" => 1, "isnumber" => 1, "isword" => 1, "islist" => 1, "isbool" => 1, "isempty" => 1,
@@ -77,9 +87,9 @@ lazy_static!{
         "make" => 2,
         "if" => 3
     );
-    // pub static ref FUNC_NAME: HashMap<&'static str>
-}
 
+    pub static ref FUNC_NAME: Mutex<HashMap<String, i32>> = Mutex::new(HashMap::new());
+}
 #[derive(Debug)]
 pub struct SymTable<T, H>
 where
@@ -107,17 +117,17 @@ where
 
     pub fn lookup(&self, x: &T) -> &H {
         if let Some(h) = self.map.get(x) {
-            return h;
+            h
         } else {
             panic!("Undefine variable!");
         }
     }
 
     pub fn bind(&mut self, var: T, val: H) -> Option<H> {
-        return self.map.insert(var, val);
+        self.map.insert(var, val)
     }
 
     pub fn unbind(&mut self, var: T) -> Option<H> {
-        return self.map.remove(&var);
+        self.map.remove(&var)
     }
 }

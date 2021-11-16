@@ -2,13 +2,12 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-10-12 20:05:07
+ * @LastEditTime: 2021-11-16 21:19:59
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
 
 use crate::parser::{is_digit, parse};
-pub use crate::syntax::Expr::{self, *};
 pub use crate::syntax::*;
 use crate::Input;
 use std::cell::RefCell;
@@ -26,6 +25,11 @@ pub fn interp_exp(
         Make(box x, box e) => {
             if let Value(ValType::Str(x)) = x {
                 let val = interp_exp(input, e, Rc::clone(&env));
+                
+                if let ValType::List(_, ListType::Function(params, _)) = &val {
+                    FUNC_NAME.lock().unwrap().insert(x.clone(), params.len() as i32);
+                }
+
                 env.borrow_mut().bind(x, val);
                 ValType::Int(0)
             } else {
@@ -52,8 +56,8 @@ pub fn interp_exp(
                 ValType::Boolean(b) => {
                     println!("{}", b);
                 }
-                ValType::List(_list) => {
-                    unreachable!() // Not supported yet
+                ValType::List(value, _) => {
+                    println!("{}", value);
                 }
             }
             val
@@ -66,8 +70,8 @@ pub fn interp_exp(
             }
         }
         Run(box cmd) => {
-            if let ValType::Str(c) = interp_exp(input, cmd, Rc::clone(&env)) {
-                let mut input = Input::string(c.trim_matches(|c| c == '[' || c == ']')).lines();
+            if let ValType::List(list, _) = interp_exp(input, cmd, Rc::clone(&env)) {
+                let mut input = Input::string(list.trim_matches(|c| c == '[' || c == ']')).lines();
                 let exps = parse(&mut input);
                 exps.into_iter()
                     .map(|exp| interp_exp(&mut input, exp, Rc::clone(&env)))
@@ -139,6 +143,9 @@ pub fn interp_exp(
             } else {
                 panic!("Read error");
             }
+        }
+        Function(op, params) => {
+            unimplemented!()
         }
     }
 }
