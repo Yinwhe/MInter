@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:23:44
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-17 08:20:15
+ * @LastEditTime: 2021-11-17 22:55:36
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -53,7 +53,10 @@ pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Vec<Sexpr> {
 
     while let Some(Ok(expr)) = input.next() {
         for word in expr.split_whitespace() {
-            if let Some(n) = is_valid_op(&word) {
+            if braket_num > 0 {
+                atom = true;
+            }
+            else if let Some(n) = is_valid_op(&word) {
                 // When needed parameter's number is zeor
                 // the op shall be taken as an atom
                 atom = n <= 0;
@@ -118,7 +121,7 @@ pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Vec<Sexpr> {
             break; // Jump out of the loop
         }
     } // While
-      // println!("{:?}", list);
+    // println!("{:?}", list);
     list
 }
 
@@ -144,7 +147,7 @@ fn is_list(s: &str) -> bool {
 }
 
 fn solve_list(s: &str) -> ValType {
-    let re = Regex::new(r"^\[ \[([^\]]*)\] \[(.*)\] \]$").unwrap();
+    let re = Regex::new(r"^\[ ?\[([^\]]*)\] \[(.*)\] ?\]$").unwrap();
 
     if let Some(m) = re.captures(s) {
         ValType::List(
@@ -235,6 +238,7 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                         "isname" | "isnumber" | "isword" | "islist" | "isbool" | "isempty" => {
                             Judge(op.to_string(), Box::new(parse_sexpr(param)))
                         }
+                        "return" => Return(Box::new(parse_sexpr(param))),
                         _ => {
                             panic!("Unrecognized List 1");
                         }

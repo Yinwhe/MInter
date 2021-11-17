@@ -2,12 +2,11 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-17 08:41:53
+ * @LastEditTime: 2021-11-17 22:58:24
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
 
-use crate::parser::{is_digit, parse};
 pub use crate::syntax::*;
 use crate::Input;
 use std::cell::RefCell;
@@ -15,11 +14,29 @@ use std::collections::VecDeque;
 use std::io::BufRead;
 use std::rc::Rc;
 
+pub fn interpretor(
+    input: &mut std::io::Lines<Input<'_>>,
+    env: Rc<RefCell<SymTable<String, ValType>>>,
+) -> ValType {
+    use crate::parser::parse;
+
+    let exps = parse(input);
+    if exps.is_empty() {
+        return ValType::Retv(Box::new(ValType::Int(0)));
+    }
+    exps.into_iter()
+        .map(|exp| interp_exp(input, exp, Rc::clone(&env)))
+        .find(|v| v.is_ret_value())
+        .unwrap()
+}
+
 pub fn interp_exp(
     input: &mut std::io::Lines<Input<'_>>,
     expr: Expr,
     env: Rc<RefCell<SymTable<String, ValType>>>,
 ) -> ValType {
+    use crate::parser::is_digit;
+
     match expr {
         Value(v) => v,
         Var(x) => env.borrow().lookup(&x).clone(),
@@ -50,20 +67,7 @@ pub fn interp_exp(
         }
         Print(box data) => {
             let val = interp_exp(input, data, Rc::clone(&env));
-            match &val {
-                ValType::Int(n) => {
-                    println!("{}", n);
-                }
-                ValType::Str(str) => {
-                    println!("{}", str);
-                }
-                ValType::Boolean(b) => {
-                    println!("{}", b);
-                }
-                ValType::List(value, _) => {
-                    println!("{}", value);
-                }
-            }
+            println!("{}", val);
             val
         }
         Thing(box data) => {
@@ -76,11 +80,8 @@ pub fn interp_exp(
         Run(box cmd) => {
             if let ValType::List(list, _) = interp_exp(input, cmd, Rc::clone(&env)) {
                 let mut input = Input::string(list.trim_matches(|c| c == '[' || c == ']')).lines();
-                let exps = parse(&mut input);
-                exps.into_iter()
-                    .map(|exp| interp_exp(&mut input, exp, Rc::clone(&env)))
-                    .last()
-                    .unwrap()
+
+                interpretor(&mut input, Rc::clone(&env))
             } else {
                 panic!("Run error, illegal cmd list")
             }
@@ -148,6 +149,8 @@ pub fn interp_exp(
                 panic!("Read error");
             }
         }
+        Return(box expr) => Retv(Box::new(interp_exp(input, expr, Rc::clone(&env)))),
+
         Function(op, exprs) => {
             let cenv = Rc::new(RefCell::new(SymTable::new()));
             if let ValType::List(_, ListType::Function(func_params, func_body)) =
@@ -169,11 +172,8 @@ pub fn interp_exp(
                     .count();
 
                 let mut input = Input::string(&func_body).lines();
-                let exps = parse(&mut input);
-                exps.into_iter()
-                    .map(|exp| interp_exp(&mut input, exp, Rc::clone(&cenv)))
-                    .last()
-                    .unwrap()
+
+                interpretor(&mut input, Rc::clone(&cenv))
             } else {
                 panic!("Function error, no function found");
             }
