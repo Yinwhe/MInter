@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-16 21:19:59
+ * @LastEditTime: 2021-11-17 08:41:53
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -11,6 +11,7 @@ use crate::parser::{is_digit, parse};
 pub use crate::syntax::*;
 use crate::Input;
 use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::io::BufRead;
 use std::rc::Rc;
 
@@ -25,9 +26,12 @@ pub fn interp_exp(
         Make(box x, box e) => {
             if let Value(ValType::Str(x)) = x {
                 let val = interp_exp(input, e, Rc::clone(&env));
-                
+
                 if let ValType::List(_, ListType::Function(params, _)) = &val {
-                    FUNC_NAME.lock().unwrap().insert(x.clone(), params.len() as i32);
+                    FUNC_NAME
+                        .lock()
+                        .unwrap()
+                        .insert(x.clone(), params.len() as i32);
                 }
 
                 env.borrow_mut().bind(x, val);
@@ -144,8 +148,35 @@ pub fn interp_exp(
                 panic!("Read error");
             }
         }
-        Function(op, params) => {
-            unimplemented!()
+        Function(op, exprs) => {
+            let cenv = Rc::new(RefCell::new(SymTable::new()));
+            if let ValType::List(_, ListType::Function(func_params, func_body)) =
+                env.borrow_mut().lookup(&op)
+            {
+                let mut params = VecDeque::new();
+                exprs
+                    .into_iter()
+                    .map(|expr| params.push_back(interp_exp(input, expr, Rc::clone(&env))))
+                    .count();
+
+                func_params
+                    .to_owned()
+                    .into_iter()
+                    .map(|param_name| {
+                        cenv.borrow_mut()
+                            .bind(param_name, params.pop_front().unwrap())
+                    })
+                    .count();
+
+                let mut input = Input::string(&func_body).lines();
+                let exps = parse(&mut input);
+                exps.into_iter()
+                    .map(|exp| interp_exp(&mut input, exp, Rc::clone(&cenv)))
+                    .last()
+                    .unwrap()
+            } else {
+                panic!("Function error, no function found");
+            }
         }
     }
 }

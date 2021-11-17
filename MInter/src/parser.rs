@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:23:44
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-16 21:32:29
+ * @LastEditTime: 2021-11-17 08:20:15
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -150,10 +150,12 @@ fn solve_list(s: &str) -> ValType {
         ValType::List(
             s.to_string(),
             ListType::Function(
-                m.get(1).unwrap().as_str().to_string(),
-                // .split_whitespace()
-                // .map(|s| s.to_string())
-                // .collect(),
+                m.get(1)
+                    .unwrap()
+                    .as_str()
+                    .split_whitespace()
+                    .map(|s| s.to_string())
+                    .collect(),
                 m.get(2).unwrap().as_str().to_string(),
             ),
         )
@@ -182,7 +184,7 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                 // Function
                 Function(
                     func_name,
-                    v.iter().map(|sexpr| parse_sexpr(sexpr)).collect(),
+                    v.iter().skip(1).map(|sexpr| parse_sexpr(sexpr)).collect(),
                 )
             } else {
                 match v.as_slice() {

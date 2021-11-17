@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-16 21:19:00
+ * @LastEditTime: 2021-11-17 08:11:19
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -19,7 +19,7 @@ use crate::hashmap;
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum ListType {
     Ordinary,
-    Function(String, String),
+    Function(Vec<String>, String),
     Closure,
 }
 
