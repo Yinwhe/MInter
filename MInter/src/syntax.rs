@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-17 20:20:40
+ * @LastEditTime: 2021-11-18 20:51:09
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -12,9 +12,11 @@ pub use ValType::*;
 
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::fmt;
+use std::fmt::{self, Display};
 use std::hash::Hash;
 use std::sync::Mutex;
+use std::rc::Rc;
+use std::cell::RefCell;
 use crate::hashmap;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -32,6 +34,7 @@ pub enum ValType{
     Boolean(bool),
     List(String, ListType),
 
+    ErrorValue,
     // Return value is special dealt with
     Retv(Box<ValType>)
 }
@@ -54,6 +57,7 @@ impl Into<i64> for ValType {
             Boolean(b) => b as i64,
             List(_, _) => unimplemented!(), // Not supported
 
+            ErrorValue => unimplemented!(),
             Retv(box val) => val.into() // Typically unreachable
         }
     }
@@ -67,6 +71,7 @@ impl Into<String> for ValType {
             Boolean(b) => b.to_string(),
             List(value, _) => value.clone(),
 
+            ErrorValue => "Value Error".into(),
             Retv(box val) => val.into()
         }
     }
@@ -80,6 +85,7 @@ impl fmt::Display for ValType {
             Boolean(b) => write!(f, "{}", b),
             List(l, _) => write!(f, "{}", l),
 
+            ErrorValue => write!(f, "{}", "Value Error"),
             Retv(box v) => v.fmt(f)
         }
     }
@@ -107,12 +113,16 @@ pub enum Expr {
     
     // For function
     Return(Box<Expr>),
-    Function(String, Vec<Expr>)
+    Function(String, Vec<Expr>),
+
+    // Others
+    Exit,
+    ErrorExpr
 }
 
 lazy_static!{
     pub static ref KEYWORD: HashMap<&'static str, i32> = hashmap!(
-        "read" => 0,
+        "read" => 0, "exit" => 0,
         "print" => 1, "thing" => 1, "erase" => 1, "run" => 1,
         "isname" => 1, "isnumber" => 1, "isword" => 1, "islist" => 1, "isbool" => 1, "isempty" => 1,
         "not" => 1, "and" => 2, "or" => 2,
@@ -129,38 +139,63 @@ lazy_static!{
 #[derive(Debug)]
 pub struct SymTable<T, H>
 where
-    T: Eq + Hash,
-    H: Eq + Hash,
+    T: Eq + Hash + Display + Clone,
+    H: Eq + Hash + Display + Clone,
 {
     pub map: HashMap<T, H>,
-    // env: Option<Rc<SymTable<T, H>>>,
+    env: Option<Rc<RefCell<SymTable<T, H>>>>,
 }
 
 impl<T, H> SymTable<T, H>
 where
-    T: Eq + Hash,
-    H: Eq + Hash,
+    T: Eq + Hash + Display + Clone,
+    H: Eq + Hash + Display + Clone,
 {
-    pub fn new() -> Self {
+    pub fn new(penv: Option<Rc<RefCell<SymTable<T, H>>>>) -> Self {
         SymTable {
             map: HashMap::new(),
+            env: penv
         }
     }
 
+    // pub fn set_parent(&mut self, penv: Rc<RefCell<SymTable<T, H>>>) {
+    //     self.env = Some(Rc::clone(&penv));
+    // }
+
     pub fn exist(&self, x: &T) -> bool {
-        self.map.get(x).is_some()
+        self.map.get(x).is_some() || self.env.is_some() && self.env.as_ref().unwrap().borrow().exist(x)
+    }
+    
+    pub fn lookup(&self, x: &T) -> H {
+        if let Some(h) = self.map.get(x) {
+            h.clone()
+        } else {
+            panic!("Undefine variable {}!", x);
+        }
     }
 
-    pub fn lookup(&self, x: &T) -> &H {
+    pub fn lookup_with_env(&self, x: &T) -> H {
         if let Some(h) = self.map.get(x) {
-            h
+            h.clone()
+        } else if self.env.is_some() {
+            self.env.as_ref().unwrap().borrow().lookup(x)
         } else {
-            panic!("Undefine variable!");
+            panic!("Undefine variable {}!", x);
         }
     }
 
     pub fn bind(&mut self, var: T, val: H) -> Option<H> {
         self.map.insert(var, val)
+    }
+
+
+    pub fn export(&mut self, var: T) -> Option<H> {
+        if self.env.is_some() {
+            let val = self.lookup(&var);
+            self.env.as_ref().unwrap().borrow_mut().bind(var, val)
+        } else {
+            None
+        }
     }
 
     pub fn unbind(&mut self, var: T) -> Option<H> {

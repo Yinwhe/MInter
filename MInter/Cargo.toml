@@ -8,3 +8,5 @@ edition = "2018"
 [dependencies]
 lazy_static = "1.4.0"
 regex = "1.5.4"
+log = "0.4"
+ansi_term = "0.12"

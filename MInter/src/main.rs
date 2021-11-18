@@ -2,13 +2,15 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:12:25
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-16 20:22:20
+ * @LastEditTime: 2021-11-18 20:51:32
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
 #![feature(box_patterns)]
 extern crate lazy_static;
 extern crate regex;
+extern crate log;
+extern crate ansi_term;
 
 mod cmdin;
 mod helper;
@@ -20,6 +22,8 @@ pub use crate::cmdin::Input;
 pub use crate::syntax::Expr::{self, *};
 pub use crate::syntax::SymTable;
 
+
+use ansi_term::Color;
 use std::cell::RefCell;
 use std::io::{BufRead, Write};
 use std::process::exit;
@@ -29,7 +33,8 @@ fn main() {
     use crate::interp::interp_exp;
     use crate::parser::parse;
 
-    let env = Rc::new(RefCell::new(SymTable::new()));
+
+    let env = Rc::new(RefCell::new(SymTable::new(None)));
 
     let file = std::env::args().nth(1);
     match file {
@@ -49,7 +54,7 @@ fn main() {
             let stdin = std::io::stdin();
             let mut input = Input::console(&stdin).lines();
             loop {
-                print!("User>");
+                print!("{}", Color::Green.paint("User>"));
                 std::io::stdout()
                     .flush()
                     .expect("Fatal error! Stdout flush fails!");
