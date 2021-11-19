@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-18 20:51:09
+ * @LastEditTime: 2021-11-19 12:19:30
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -158,10 +158,6 @@ where
         }
     }
 
-    // pub fn set_parent(&mut self, penv: Rc<RefCell<SymTable<T, H>>>) {
-    //     self.env = Some(Rc::clone(&penv));
-    // }
-
     pub fn exist(&self, x: &T) -> bool {
         self.map.get(x).is_some() || self.env.is_some() && self.env.as_ref().unwrap().borrow().exist(x)
     }
@@ -178,7 +174,7 @@ where
         if let Some(h) = self.map.get(x) {
             h.clone()
         } else if self.env.is_some() {
-            self.env.as_ref().unwrap().borrow().lookup(x)
+            self.env.as_ref().unwrap().borrow().lookup_with_env(x)
         } else {
             panic!("Undefine variable {}!", x);
         }
