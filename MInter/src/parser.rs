@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:23:44
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-18 20:07:41
+ * @LastEditTime: 2021-11-19 13:52:43
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -251,6 +251,7 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                             Judge(op.to_string(), Box::new(parse_sexpr(param)))
                         }
                         "return" => Return(Box::new(parse_sexpr(param))),
+                        "export" => Export(Box::new(parse_sexpr(param))), 
                         _ => parse_error("Unrecognized List 1"),
                     },
                     // no parameters
