@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-19 14:30:00
+ * @LastEditTime: 2021-11-19 15:14:34
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -49,7 +49,7 @@ pub fn interp_exp(
         Value(v) => v,
         Var(x) => env.borrow().lookup(&x),
         Make(box x, box e) => {
-            if let Value(ValType::Str(x)) = x {
+            if let ValType::Str(x) = interp_exp(input, x, Rc::clone(&env)) {
                 let val = interp_exp(input, e, Rc::clone(&env));
 
                 if let ValType::List(_, ListType::Function(params, _)) = &val {
@@ -95,10 +95,18 @@ pub fn interp_exp(
             }
         }
         Judge(op, box value) => {
-            let val: String = interp_exp(input, value, Rc::clone(&env)).into();
+            let val = interp_exp(input, value, Rc::clone(&env));
             match op.as_str() {
-                "isname" => ValType::Boolean(env.borrow().exist(&val)),
-                "isnumber" => ValType::Boolean(is_digit(&val)),
+                "isname" => ValType::Boolean(env.borrow().exist(&val.into())),
+                "isnumber" => ValType::Boolean(is_digit(&val.to_string())),
+                "isword" => ValType::Boolean(val.is_string()),
+                "islist" => ValType::Boolean(val.is_list()),
+                "isbool" => ValType::Boolean(val.is_bool()),
+                "isempty" => ValType::Boolean(
+                    val.to_string()
+                        .trim_matches(|c| c == '[' || c == ']')
+                        .is_empty(),
+                ),
                 _ => interp_error("Judge error, illegal operator"),
             }
         }
@@ -115,14 +123,28 @@ pub fn interp_exp(
             }
         }
         Comp(op, box n1, box n2) => {
-            let v1: i64 = interp_exp(input, n1, Rc::clone(&env)).into();
-            let v2: i64 = interp_exp(input, n2, Rc::clone(&env)).into();
-            match op.as_str() {
-                "eq" => ValType::Boolean(v1 == v2),
-                "gt" => ValType::Boolean(v1 > v2),
-                "lt" => ValType::Boolean(v1 < v2),
-                _ => interp_error("Comp error, illegal operator"),
+            let v1 = interp_exp(input, n1, Rc::clone(&env));
+            let v2 = interp_exp(input, n2, Rc::clone(&env));
+            if v1.is_int() && v2.is_int() { // Integer compare
+                let v1: i64 = v1.into();
+                let v2: i64 = v2.into();
+                match op.as_str() {
+                    "eq" => ValType::Boolean(v1 == v2),
+                    "gt" => ValType::Boolean(v1 > v2),
+                    "lt" => ValType::Boolean(v1 < v2),
+                    _ => interp_error("Comp error, illegal operator"),
+                }
+            } else {    // String compare
+                let v1: String = v1.into();
+                let v2: String = v2.into();
+                match op.as_str() {
+                    "eq" => ValType::Boolean(v1 == v2),
+                    "gt" => ValType::Boolean(v1 > v2),
+                    "lt" => ValType::Boolean(v1 < v2),
+                    _ => interp_error("Comp error, illegal operator"),
+                }
             }
+
         }
         Logic(op, box n1, box n2) => {
             if let (ValType::Boolean(b1), ValType::Boolean(b2)) = (
@@ -174,13 +196,12 @@ pub fn interp_exp(
                 None,
             )));
 
-            let func : ValType;
+            let func: ValType;
             {
                 func = env.borrow().lookup_global(&op);
             }
-            
-            if let ValType::List(_, ListType::Function(func_params, func_body)) = func
-            {
+
+            if let ValType::List(_, ListType::Function(func_params, func_body)) = func {
                 let mut params = VecDeque::new();
                 exprs
                     .into_iter()
@@ -198,7 +219,6 @@ pub fn interp_exp(
                 let mut cinput = Input::string(&func_body).lines();
 
                 interpretor(&mut cinput, Rc::clone(&cenv))
-
             } else {
                 interp_error("Function error, no function found")
             }

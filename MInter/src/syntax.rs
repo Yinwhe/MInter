@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-19 13:52:13
+ * @LastEditTime: 2021-11-19 14:53:00
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -40,6 +40,38 @@ pub enum ValType {
 }
 
 impl ValType {
+    pub fn is_int(&self) -> bool {
+        if let Int(_) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn is_string(&self) -> bool {
+        if let Str(_) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn is_bool(&self) -> bool {
+        if let Boolean(_) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn is_list(&self) -> bool {
+        if let List(_, _) = self {
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn is_ret_value(&self) -> bool {
         if let Retv(_) = self {
             true
