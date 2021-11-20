@@ -2,15 +2,16 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:12:25
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-19 13:13:35
+ * @LastEditTime: 2021-11-20 21:28:39
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
 #![feature(box_patterns)]
 extern crate lazy_static;
 extern crate regex;
-extern crate log;
 extern crate ansi_term;
+extern crate ordered_float;
+extern crate num_traits;
 
 mod cmdin;
 mod helper;
@@ -22,11 +23,9 @@ pub use crate::cmdin::Input;
 pub use crate::syntax::Expr::{self, *};
 pub use crate::syntax::SymTable;
 
-
 use ansi_term::Color;
 use std::cell::RefCell;
 use std::io::{BufRead, Write};
-use std::process::exit;
 use std::rc::Rc;
 
 fn main() {
@@ -44,9 +43,6 @@ fn main() {
             let mut input = Input::file(&filename).unwrap().lines();
             loop {
                 let exps = parse(&mut input);
-                if exps.is_empty() {
-                    exit(0);
-                }
                 exps.into_iter()
                     .map(|exp| interp_exp(&mut input, exp, Rc::clone(&global)))
                     .last();

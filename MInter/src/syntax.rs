@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-19 14:53:00
+ * @LastEditTime: 2021-11-20 21:55:39
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -11,6 +11,7 @@ pub use Expr::*;
 pub use ValType::*;
 
 use crate::hashmap;
+use ordered_float::OrderedFloat;
 use lazy_static::lazy_static;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -28,8 +29,7 @@ pub enum ListType {
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum ValType {
-    Int(i64),
-    // Float(f64) // I won't implement this I guess.
+    Num(OrderedFloat<f64>),
     Str(String),
     Boolean(bool),
     List(String, ListType),
@@ -40,8 +40,8 @@ pub enum ValType {
 }
 
 impl ValType {
-    pub fn is_int(&self) -> bool {
-        if let Int(_) = self {
+    pub fn is_num(&self) -> bool {
+        if let Num(_) = self {
             true
         } else {
             false
@@ -81,12 +81,12 @@ impl ValType {
     }
 }
 
-impl Into<i64> for ValType {
-    fn into(self) -> i64 {
+impl Into<OrderedFloat<f64>> for ValType {
+    fn into(self) -> OrderedFloat<f64> {
         match self {
-            Int(i) => i,
+            Num(n) => n,
             Str(s) => s.parse().unwrap(),
-            Boolean(b) => b as i64,
+            Boolean(b) => (b as i64 as f64).into(),
             List(_, _) => unimplemented!(), // Not supported
 
             ErrorValue => unimplemented!(),
@@ -98,7 +98,7 @@ impl Into<i64> for ValType {
 impl Into<String> for ValType {
     fn into(self) -> String {
         match self {
-            Int(i) => i.to_string(),
+            Num(n) => n.to_string(),
             Str(s) => s.clone(),
             Boolean(b) => b.to_string(),
             List(value, _) => value.clone(),
@@ -112,7 +112,8 @@ impl Into<String> for ValType {
 impl fmt::Display for ValType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Int(i) => write!(f, "{}", i),
+            // Int(i) => write!(f, "{}", i),
+            Num(n) => write!(f, "{}", n),
             Str(s) => write!(f, "{}", s),
             Boolean(b) => write!(f, "{}", b),
             List(l, _) => write!(f, "{}", l),

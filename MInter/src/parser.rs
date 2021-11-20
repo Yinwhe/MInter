@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:23:44
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-19 14:37:13
+ * @LastEditTime: 2021-11-20 21:57:27
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -139,14 +139,12 @@ pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Vec<Sexpr> {
     list
 }
 
-pub fn is_digit(s: &str) -> bool {
-    // Here we won't implement float number
-    for c in s.chars() {
-        if !c.is_digit(10) {
-            return false;
-        }
+fn is_num(s: &str) -> bool {
+    let mut x = s;
+    if s.starts_with("-") {
+        x = &s[1..];
     }
-    true
+    !x.is_empty() && x.chars().find(|&c| !(c.is_digit(10) || c == '.')).is_none()
 }
 
 fn is_literal(s: &str) -> bool {
@@ -184,8 +182,8 @@ fn solve_list(s: &str) -> ValType {
 pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
     match sexpr {
         Atom(s) => {
-            if is_digit(s) {
-                Value(ValType::Int(s.parse().unwrap()))
+            if is_num(s) {
+                Value(ValType::Num(s.parse().unwrap()))
             } else if is_literal(s) {
                 Value(ValType::Str(s[1..].to_string()))
             } else if is_list(s) {
@@ -251,7 +249,7 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                             Judge(op.to_string(), Box::new(parse_sexpr(param)))
                         }
                         "return" => Return(Box::new(parse_sexpr(param))),
-                        "export" => Export(Box::new(parse_sexpr(param))), 
+                        "export" => Export(Box::new(parse_sexpr(param))),
                         _ => parse_error("Unrecognized List 1"),
                     },
                     // no parameters

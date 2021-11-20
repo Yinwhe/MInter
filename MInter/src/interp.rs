@@ -2,15 +2,16 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-19 15:14:34
+ * @LastEditTime: 2021-11-20 21:56:23
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
 
-use ansi_term::Color;
-
 pub use crate::syntax::*;
+
 use crate::Input;
+use ansi_term::Color;
+use ordered_float::OrderedFloat;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::io::BufRead;
@@ -43,8 +44,6 @@ pub fn interp_exp(
     expr: Expr,
     env: Rc<RefCell<SymTable<String, ValType>>>,
 ) -> ValType {
-    use crate::parser::is_digit;
-
     match expr {
         Value(v) => v,
         Var(x) => env.borrow().lookup(&x),
@@ -68,7 +67,7 @@ pub fn interp_exp(
         Erase(box n) => {
             if let Value(ValType::Str(n)) = n {
                 env.borrow_mut().unbind(n);
-                ValType::Int(0)
+                ValType::Num(0.0.into())
             } else {
                 interp_error("Erase error, variable not a literal")
             }
@@ -98,7 +97,7 @@ pub fn interp_exp(
             let val = interp_exp(input, value, Rc::clone(&env));
             match op.as_str() {
                 "isname" => ValType::Boolean(env.borrow().exist(&val.into())),
-                "isnumber" => ValType::Boolean(is_digit(&val.to_string())),
+                "isnumber" => ValType::Boolean(val.is_num()),
                 "isword" => ValType::Boolean(val.is_string()),
                 "islist" => ValType::Boolean(val.is_list()),
                 "isbool" => ValType::Boolean(val.is_bool()),
@@ -111,30 +110,32 @@ pub fn interp_exp(
             }
         }
         Calc(op, box n1, box n2) => {
-            let v1: i64 = interp_exp(input, n1, Rc::clone(&env)).into();
-            let v2: i64 = interp_exp(input, n2, Rc::clone(&env)).into();
+            let v1: OrderedFloat<f64> = interp_exp(input, n1, Rc::clone(&env)).into();
+            let v2: OrderedFloat<f64> = interp_exp(input, n2, Rc::clone(&env)).into();
             match op.as_str() {
-                "add" => ValType::Str((v1 as f64 + v2 as f64).to_string()),
-                "sub" => ValType::Str((v1 as f64 - v2 as f64).to_string()),
-                "mul" => ValType::Str((v1 as f64 * v2 as f64).to_string()),
-                "div" => ValType::Str((v1 as f64 / v2 as f64).to_string()),
-                "mod" => ValType::Int(v1 % v2),
+                "add" => ValType::Num(v1 + v2),
+                "sub" => ValType::Num(v1 - v2),
+                "mul" => ValType::Num(v1 * v2),
+                "div" => ValType::Num(v1 / v2),
+                "mod" => ValType::Num(v1 % v2),
                 _ => interp_error("Calc error, illegal operator"),
             }
         }
         Comp(op, box n1, box n2) => {
             let v1 = interp_exp(input, n1, Rc::clone(&env));
             let v2 = interp_exp(input, n2, Rc::clone(&env));
-            if v1.is_int() && v2.is_int() { // Integer compare
-                let v1: i64 = v1.into();
-                let v2: i64 = v2.into();
+            if v1.is_num() && v2.is_num() {
+                // Integer compare
+                let v1: OrderedFloat<f64> = v1.into();
+                let v2: OrderedFloat<f64> = v2.into();
                 match op.as_str() {
                     "eq" => ValType::Boolean(v1 == v2),
                     "gt" => ValType::Boolean(v1 > v2),
                     "lt" => ValType::Boolean(v1 < v2),
                     _ => interp_error("Comp error, illegal operator"),
                 }
-            } else {    // String compare
+            } else {
+                // String compare
                 let v1: String = v1.into();
                 let v2: String = v2.into();
                 match op.as_str() {
@@ -144,7 +145,6 @@ pub fn interp_exp(
                     _ => interp_error("Comp error, illegal operator"),
                 }
             }
-
         }
         Logic(op, box n1, box n2) => {
             if let (ValType::Boolean(b1), ValType::Boolean(b2)) = (
