@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-20 21:55:39
+ * @LastEditTime: 2021-11-20 22:38:13
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -34,7 +34,8 @@ pub enum ValType {
     Boolean(bool),
     List(String, ListType),
 
-    ErrorValue,
+    // When error occurs
+    Null,
     // Return value is special dealt with
     Retv(Box<ValType>),
 }
@@ -89,7 +90,7 @@ impl Into<OrderedFloat<f64>> for ValType {
             Boolean(b) => (b as i64 as f64).into(),
             List(_, _) => unimplemented!(), // Not supported
 
-            ErrorValue => unimplemented!(),
+            Null => unimplemented!(),
             Retv(box val) => val.into(), // Typically unreachable
         }
     }
@@ -103,7 +104,7 @@ impl Into<String> for ValType {
             Boolean(b) => b.to_string(),
             List(value, _) => value.clone(),
 
-            ErrorValue => "Value Error".into(),
+            Null => "null".into(),
             Retv(box val) => val.into(),
         }
     }
@@ -118,7 +119,7 @@ impl fmt::Display for ValType {
             Boolean(b) => write!(f, "{}", b),
             List(l, _) => write!(f, "{}", l),
 
-            ErrorValue => write!(f, "{}", "Value Error"),
+            Null => write!(f, "{}", "null"),
             Retv(box v) => v.fmt(f),
         }
     }
@@ -148,14 +149,16 @@ pub enum Expr {
     Function(String, Vec<Expr>),
     Export(Box<Expr>),
 
+    // Empty
+    Nop,
+
     // Others
     Exit,
-    ErrorExpr,
 }
 
 lazy_static! {
     pub static ref KEYWORD: HashMap<&'static str, i32> = hashmap!(
-        "read" => 0, "exit" => 0,
+        "nop" => 0, "read" => 0, "exit" => 0,
         "print" => 1, "thing" => 1, "erase" => 1, "run" => 1, "export" => 1,
         "isname" => 1, "isnumber" => 1, "isword" => 1, "islist" => 1, "isbool" => 1, "isempty" => 1,
         "not" => 1, "and" => 2, "or" => 2,
@@ -211,16 +214,18 @@ where
         self.global.as_ref().unwrap().borrow().exist(x)
     }
 
-    pub fn lookup(&self, x: &T) -> H {
+    pub fn lookup(&self, x: &T, global: bool) -> H {
         if let Some(h) = self.local.get(x) {
             h.clone()
+        } else if global {
+            self.lookup_global(x)
         } else {
             panic!("Undefine variable {}!", x);
         }
     }
 
     pub fn lookup_global(&self, x: &T) -> H {
-        self.global.as_ref().unwrap().borrow().lookup(x)
+        self.global.as_ref().unwrap().borrow().lookup(x, false)
     }
 
     pub fn bind(&mut self, var: T, val: H) -> Option<H> {
@@ -228,7 +233,7 @@ where
     }
 
     pub fn export(&mut self, var: T) -> Option<H> {
-        let val = self.lookup(&var);
+        let val = self.lookup(&var, false);
         self.global.as_ref().unwrap().borrow_mut().bind(var, val)
     }
 

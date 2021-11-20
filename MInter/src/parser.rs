@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:23:44
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-20 21:57:27
+ * @LastEditTime: 2021-11-20 22:59:54
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -42,11 +42,15 @@ fn is_func(sexpr: Option<&Sexpr>) -> Option<String> {
 
 fn parse_error(content: &str) -> Expr {
     println!("{} - {}", Color::Red.paint("Parse Error"), content);
-    Expr::ErrorExpr
+    Expr::Nop
+}
+
+fn _parse_list() {
+    unimplemented!()
 }
 
 // Read until a command line is complete
-pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Vec<Sexpr> {
+pub fn parse_string(input: &mut std::io::Lines<Input<'_>>) -> Vec<Sexpr> {
     let mut stack = vec![];
     let mut list = vec![];
 
@@ -59,7 +63,10 @@ pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Vec<Sexpr> {
     let mut atom: bool;
     let mut valid_op: bool;
 
-    while let Some(Ok(expr)) = input.next() {
+    while let Some(Ok(mut expr)) = input.next() {
+        if expr.is_empty() {
+            expr = "nop".into();
+        }
         for word in expr.split_whitespace() {
             if let Some(n) = is_valid_op(&word) {
                 valid_op = true;
@@ -139,7 +146,7 @@ pub fn parse_list(input: &mut std::io::Lines<Input<'_>>) -> Vec<Sexpr> {
     list
 }
 
-fn is_num(s: &str) -> bool {
+pub fn is_num(s: &str) -> bool {
     let mut x = s;
     if s.starts_with("-") {
         x = &s[1..];
@@ -254,6 +261,7 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                     },
                     // no parameters
                     [Atom(op)] => match op.as_str() {
+                        "nop" => Nop,
                         "read" => Read(),
                         "exit" => Exit,
                         _ => parse_error("Unrecognized List 0"),
@@ -273,7 +281,7 @@ pub fn parse(input: &mut std::io::Lines<Input<'_>>) -> Vec<Expr> {
     // println!("sexpr - {:?}", sexprs);
     // return sexprs;
 
-    parse_list(input)
+    parse_string(input)
         .iter()
         .map(|sexpr| parse_sexpr(sexpr))
         .collect()

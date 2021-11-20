@@ -1,0 +1,47 @@
+# cpp, java, python, rust, js,
+variables:
+  ENV: ''
+  IN: $in
+  STDOUT: $stdout
+
+stages:
+  - pre
+  - build
+  - commit
+
+prepare:
+  stage: pre
+  script:
+    - cat $in > in
+    - cat $stdout > stdout
+
+  artifacts:
+    paths:
+      - in
+      - stdout
+
+build_test:
+  stage: build
+  rules:
+    - if: $ENV == ""
+      when: manual
+  image: xw77714298/combinedenv:v1
+  script:
+    - javac Test.java
+    - sh build.sh
+    - touch res.txt score
+    - java Test res.txt
+    - cat res.txt score
+  artifacts:
+    paths:
+      - score
+
+commit_score:
+  stage: commit
+  script:
+    - score=$(cat score)
+    - echo $score
+    - echo $CI_COMMIT_TIMESTAMP
+    - echo $GITLAB_USER_EMAIL
+    - echo $CI_COMMIT_SHA
+    - curl --location --request GET "172.25.2.12:5000?time=$CI_COMMIT_TIMESTAMP&userid=$GITLAB_USER_EMAIL&score=$score&sha=$CI_COMMIT_SHA"

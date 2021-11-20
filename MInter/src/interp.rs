@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-20 21:56:23
+ * @LastEditTime: 2021-11-20 22:39:18
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -24,7 +24,7 @@ pub fn interpretor(
 ) -> ValType {
     use crate::parser::parse;
 
-    let mut res = ValType::ErrorValue;
+    let mut res = ValType::Null;
     for exp in parse(input) {
         res = interp_exp(input, exp, Rc::clone(&env));
         if res.is_ret_value() {
@@ -36,7 +36,7 @@ pub fn interpretor(
 
 fn interp_error(content: &str) -> ValType {
     println!("{} - {}", Color::Red.paint("Interpret Error"), content);
-    ValType::ErrorValue
+    ValType::Null
 }
 
 pub fn interp_exp(
@@ -44,9 +44,11 @@ pub fn interp_exp(
     expr: Expr,
     env: Rc<RefCell<SymTable<String, ValType>>>,
 ) -> ValType {
+    use crate::parser::is_num;
+
     match expr {
         Value(v) => v,
-        Var(x) => env.borrow().lookup(&x),
+        Var(x) => env.borrow().lookup(&x, true),
         Make(box x, box e) => {
             if let ValType::Str(x) = interp_exp(input, x, Rc::clone(&env)) {
                 let val = interp_exp(input, e, Rc::clone(&env));
@@ -79,7 +81,7 @@ pub fn interp_exp(
         }
         Thing(box data) => {
             if let ValType::Str(v) = interp_exp(input, data, Rc::clone(&env)) {
-                env.borrow().lookup(&v)
+                env.borrow().lookup(&v, true)
             } else {
                 interp_error("Thing error, illegal variable")
             }
@@ -97,7 +99,7 @@ pub fn interp_exp(
             let val = interp_exp(input, value, Rc::clone(&env));
             match op.as_str() {
                 "isname" => ValType::Boolean(env.borrow().exist(&val.into())),
-                "isnumber" => ValType::Boolean(val.is_num()),
+                "isnumber" => ValType::Boolean(is_num(val.to_string().as_str())),
                 "isword" => ValType::Boolean(val.is_string()),
                 "islist" => ValType::Boolean(val.is_list()),
                 "isbool" => ValType::Boolean(val.is_bool()),
@@ -187,7 +189,7 @@ pub fn interp_exp(
                 interp_error("Export error, illegal variables");
             }
 
-            ValType::ErrorValue
+            ValType::Null
         }
 
         Function(op, exprs) => {
@@ -223,7 +225,7 @@ pub fn interp_exp(
                 interp_error("Function error, no function found")
             }
         }
-        ErrorExpr => ValType::ErrorValue,
+        Nop => ValType::Null,
         Exit => {
             println!(
                 "{}",
