@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-20 22:38:13
+ * @LastEditTime: 2021-11-21 16:03:56
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -23,7 +23,7 @@ use std::sync::Mutex;
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum ListType {
     Ordinary,
-    Function(Vec<String>, String),
+    Function(Vec<String>, Vec<ValType>),
     Closure,
 }
 
@@ -32,7 +32,7 @@ pub enum ValType {
     Num(OrderedFloat<f64>),
     Str(String),
     Boolean(bool),
-    List(String, ListType),
+    List(Vec<ValType>, ListType),
 
     // When error occurs
     Null,
@@ -82,6 +82,19 @@ impl ValType {
     }
 }
 
+pub fn vec2str(list: &Vec<ValType>) -> String {
+    let mut slist = "[ ".to_string();
+    for value in list {
+        if let List(l, _) = value {
+            slist.extend([ vec2str(l).as_ref(), " "])
+        } else {
+            slist.extend([ value.to_string().as_ref(), " "])
+        }
+    }
+    slist.push_str("]");
+    slist
+}
+
 impl Into<OrderedFloat<f64>> for ValType {
     fn into(self) -> OrderedFloat<f64> {
         match self {
@@ -96,20 +109,6 @@ impl Into<OrderedFloat<f64>> for ValType {
     }
 }
 
-impl Into<String> for ValType {
-    fn into(self) -> String {
-        match self {
-            Num(n) => n.to_string(),
-            Str(s) => s.clone(),
-            Boolean(b) => b.to_string(),
-            List(value, _) => value.clone(),
-
-            Null => "null".into(),
-            Retv(box val) => val.into(),
-        }
-    }
-}
-
 impl fmt::Display for ValType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -117,7 +116,7 @@ impl fmt::Display for ValType {
             Num(n) => write!(f, "{}", n),
             Str(s) => write!(f, "{}", s),
             Boolean(b) => write!(f, "{}", b),
-            List(l, _) => write!(f, "{}", l),
+            List(list, _) => write!(f, "{}", vec2str(list)),
 
             Null => write!(f, "{}", "null"),
             Retv(box v) => v.fmt(f),

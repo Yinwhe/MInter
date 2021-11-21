@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-20 22:39:18
+ * @LastEditTime: 2021-11-21 16:22:52
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -88,7 +88,9 @@ pub fn interp_exp(
         }
         Run(box cmd) => {
             if let ValType::List(list, _) = interp_exp(input, cmd, Rc::clone(&env)) {
-                let mut input = Input::string(list.trim_matches(|c| c == '[' || c == ']')).lines();
+                let content = vec2str(&list);
+                let mut input =
+                    Input::string(&content.trim_matches(|c| c == '[' || c == ']')).lines();
 
                 interpretor(&mut input, Rc::clone(&env))
             } else {
@@ -98,7 +100,7 @@ pub fn interp_exp(
         Judge(op, box value) => {
             let val = interp_exp(input, value, Rc::clone(&env));
             match op.as_str() {
-                "isname" => ValType::Boolean(env.borrow().exist(&val.into())),
+                "isname" => ValType::Boolean(env.borrow().exist(&val.to_string())),
                 "isnumber" => ValType::Boolean(is_num(val.to_string().as_str())),
                 "isword" => ValType::Boolean(val.is_string()),
                 "islist" => ValType::Boolean(val.is_list()),
@@ -138,8 +140,8 @@ pub fn interp_exp(
                 }
             } else {
                 // String compare
-                let v1: String = v1.into();
-                let v2: String = v2.into();
+                let v1 = v1.to_string();
+                let v2 = v2.to_string();
                 match op.as_str() {
                     "eq" => ValType::Boolean(v1 == v2),
                     "gt" => ValType::Boolean(v1 > v2),
@@ -205,6 +207,7 @@ pub fn interp_exp(
 
             if let ValType::List(_, ListType::Function(func_params, func_body)) = func {
                 let mut params = VecDeque::new();
+                let func_body = vec2str(&func_body);
                 exprs
                     .into_iter()
                     .map(|expr| params.push_back(interp_exp(input, expr, Rc::clone(&env))))
@@ -218,7 +221,8 @@ pub fn interp_exp(
                     })
                     .count();
 
-                let mut cinput = Input::string(&func_body).lines();
+                let mut cinput =
+                    Input::string(&func_body.trim_matches(|c| c == '[' || c == ']')).lines();
 
                 interpretor(&mut cinput, Rc::clone(&cenv))
             } else {

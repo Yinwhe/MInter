@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:23:44
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-20 22:59:54
+ * @LastEditTime: 2021-11-21 16:23:06
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -43,10 +43,6 @@ fn is_func(sexpr: Option<&Sexpr>) -> Option<String> {
 fn parse_error(content: &str) -> Expr {
     println!("{} - {}", Color::Red.paint("Parse Error"), content);
     Expr::Nop
-}
-
-fn _parse_list() {
-    unimplemented!()
 }
 
 // Read until a command line is complete
@@ -165,12 +161,55 @@ fn is_list(s: &str) -> bool {
     s.starts_with("[")
 }
 
+fn parse_list(slist: &str) -> Vec<ValType> {
+    let mut stack = vec![];
+    let mut list = vec![];
+    let mut word = "".to_string();
+    let mut word_flag = false;
+
+    for c in slist.chars() {
+        match c {
+            '[' => {
+                stack.push(list);
+                list = vec![];
+            }
+            ']' => {
+                if word_flag {
+                    word_flag = false;
+                    list.push(ValType::Str(word.clone()));
+                    word.clear();
+                }
+                let mut nlist = stack.pop().unwrap();
+                nlist.push(ValType::List(list, ListType::Ordinary));
+                list = nlist;
+            }
+            ' ' => {
+                if word_flag {
+                    word_flag = false;
+                    list.push(ValType::Str(word.clone()));
+                    word.clear();
+                }
+            }
+            _ => {
+                word_flag = true;
+                word.push(c);
+            }
+        }
+    }
+
+    if let ValType::List(l, _) = list.pop().unwrap() {
+        l
+    } else {
+        panic!("parse list fatal error");
+    }
+}
+
 fn solve_list(s: &str) -> ValType {
     let re = Regex::new(r"^\[ ?\[([^\]]*)\] \[(.*)\] ?\]$").unwrap();
 
     if let Some(m) = re.captures(s) {
         ValType::List(
-            s.to_string(),
+            parse_list(s),
             ListType::Function(
                 m.get(1)
                     .unwrap()
@@ -178,11 +217,11 @@ fn solve_list(s: &str) -> ValType {
                     .split_whitespace()
                     .map(|s| s.to_string())
                     .collect(),
-                m.get(2).unwrap().as_str().to_string(),
+                parse_list(&format!("[{}]", m.get(2).unwrap().as_str())),
             ),
         )
     } else {
-        ValType::List(s.to_string(), ListType::Ordinary)
+        ValType::List(parse_list(s), ListType::Ordinary)
     }
 }
 
