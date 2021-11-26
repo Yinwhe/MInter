@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-21 16:03:56
+ * @LastEditTime: 2021-11-26 20:17:03
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -78,6 +78,14 @@ impl ValType {
             true
         } else {
             false
+        }
+    }
+
+    pub fn get_ret_value(&self) -> ValType {
+        if let Retv(box v) = self {
+            v.to_owned()
+        } else {
+            ValType::Null
         }
     }
 }

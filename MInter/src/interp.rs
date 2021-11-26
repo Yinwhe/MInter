@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-21 16:22:52
+ * @LastEditTime: 2021-11-26 20:17:29
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -28,7 +28,7 @@ pub fn interpretor(
     for exp in parse(input) {
         res = interp_exp(input, exp, Rc::clone(&env));
         if res.is_ret_value() {
-            return res;
+            return res.get_ret_value();
         }
     }
     res
@@ -52,8 +52,10 @@ pub fn interp_exp(
         Make(box x, box e) => {
             if let ValType::Str(x) = interp_exp(input, x, Rc::clone(&env)) {
                 let val = interp_exp(input, e, Rc::clone(&env));
+                // println!("Debug - {:?}", val);
 
                 if let ValType::List(_, ListType::Function(params, _)) = &val {
+                    println!("Debug - It's Func!");
                     FUNC_NAME
                         .lock()
                         .unwrap()
