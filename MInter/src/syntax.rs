@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-26 20:17:03
+ * @LastEditTime: 2021-11-26 22:46:30
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -11,20 +11,25 @@ pub use Expr::*;
 pub use ValType::*;
 
 use crate::hashmap;
-use ordered_float::OrderedFloat;
 use lazy_static::lazy_static;
+use ordered_float::OrderedFloat;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
 use std::hash::Hash;
 use std::rc::Rc;
 use std::sync::Mutex;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct ClosureEnv{
+    name: String,
+    val: ValType
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum ListType {
     Ordinary,
-    Function(Vec<String>, Vec<ValType>),
-    Closure,
+    Function(Vec<ClosureEnv>, Vec<String>, Vec<ValType>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -88,15 +93,19 @@ impl ValType {
             ValType::Null
         }
     }
+
+    pub fn find_val_in_list(&self, set: HashSet<String>) {
+        unimplemented!()
+    }
 }
 
 pub fn vec2str(list: &Vec<ValType>) -> String {
     let mut slist = "[ ".to_string();
     for value in list {
         if let List(l, _) = value {
-            slist.extend([ vec2str(l).as_ref(), " "])
+            slist.extend([vec2str(l).as_ref(), " "])
         } else {
-            slist.extend([ value.to_string().as_ref(), " "])
+            slist.extend([value.to_string().as_ref(), " "])
         }
     }
     slist.push_str("]");
@@ -185,8 +194,8 @@ where
     H: Eq + Hash + Display + Clone,
 {
     local: HashMap<T, H>,
+    plocal: Option<Rc<RefCell<SymTable<T, H>>>>,
     global: Option<Rc<RefCell<SymTable<T, H>>>>,
-    _pstack: Option<Rc<RefCell<SymTable<T, H>>>>,
 }
 
 impl<T, H> SymTable<T, H>
@@ -196,12 +205,12 @@ where
 {
     pub fn new(
         global: Option<Rc<RefCell<SymTable<T, H>>>>,
-        pstack: Option<Rc<RefCell<SymTable<T, H>>>>,
+        plocal: Option<Rc<RefCell<SymTable<T, H>>>>,
     ) -> Self {
         SymTable {
             local: HashMap::new(),
+            plocal: plocal,
             global: global,
-            _pstack: pstack,
         }
     }
 
@@ -213,26 +222,52 @@ where
         Rc::clone(self.global.as_ref().unwrap())
     }
 
-    pub fn exist(&self, x: &T) -> bool {
+    pub fn exist_local(&self, x: &T) -> bool {
         self.local.get(x).is_some()
     }
 
-    pub fn exist_global(&self, x: &T) -> bool {
-        self.global.as_ref().unwrap().borrow().exist(x)
+    pub fn exist_plocal(&self, x: &T) -> bool {
+        self.plocal.as_ref().unwrap().borrow().exist_local(x)
     }
 
-    pub fn lookup(&self, x: &T, global: bool) -> H {
+    pub fn exist_global(&self, x: &T) -> bool {
+        self.global.as_ref().unwrap().borrow().exist_local(x)0000000
+
+
+
+
+
+
+
+         
+    }
+
+    pub fn lookup(&self, x: &T) -> H {
         if let Some(h) = self.local.get(x) {
             h.clone()
-        } else if global {
+        } else if self.plocal.is_some() {
+            self.lookup_plocal(x)
+        } else if self.global.is_some() {
             self.lookup_global(x)
         } else {
             panic!("Undefine variable {}!", x);
         }
     }
 
+    pub fn lookup_local(&self, x: &T) -> H {
+        if let Some(h) = self.local.get(x) {
+            h.clone()
+        } else {
+            panic!("Undefine variable {}!", x);
+        }
+    }
+
+    pub fn lookup_plocal(&self, x: &T) -> H {
+        self.plocal.as_ref().unwrap().borrow().lookup_local(x)
+    }
+
     pub fn lookup_global(&self, x: &T) -> H {
-        self.global.as_ref().unwrap().borrow().lookup(x, false)
+        self.global.as_ref().unwrap().borrow().lookup_local(x)
     }
 
     pub fn bind(&mut self, var: T, val: H) -> Option<H> {
@@ -240,7 +275,7 @@ where
     }
 
     pub fn export(&mut self, var: T) -> Option<H> {
-        let val = self.lookup(&var, false);
+        let val = self.lookup_local(&var);
         self.global.as_ref().unwrap().borrow_mut().bind(var, val)
     }
 

@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:23:44
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-21 16:23:06
+ * @LastEditTime: 2021-11-26 21:54:22
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -211,6 +211,7 @@ fn solve_list(s: &str) -> ValType {
         ValType::List(
             parse_list(s),
             ListType::Function(
+                Vec::new(),
                 m.get(1)
                     .unwrap()
                     .as_str()

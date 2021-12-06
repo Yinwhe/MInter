@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-26 20:17:29
+ * @LastEditTime: 2021-11-26 22:46:43
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -13,7 +13,7 @@ use crate::Input;
 use ansi_term::Color;
 use ordered_float::OrderedFloat;
 use std::cell::RefCell;
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::io::BufRead;
 use std::process::exit;
 use std::rc::Rc;
@@ -48,14 +48,25 @@ pub fn interp_exp(
 
     match expr {
         Value(v) => v,
-        Var(x) => env.borrow().lookup(&x, true),
+        Var(x) => env.borrow().lookup(&x),
         Make(box x, box e) => {
             if let ValType::Str(x) = interp_exp(input, x, Rc::clone(&env)) {
                 let val = interp_exp(input, e, Rc::clone(&env));
                 // println!("Debug - {:?}", val);
 
-                if let ValType::List(_, ListType::Function(params, _)) = &val {
-                    println!("Debug - It's Func!");
+                if let ValType::List(_, ListType::Function(closenv, params, body)) = &val {
+                    println!("Debug - It's Func!\n body: {}", vec2str(body));
+                    let mut set = HashSet::new();
+                    body.iter().map(|v| v.find_val_in_list(set)).count();
+                    set.iter()
+                        .filter(|v| env.borrow().exist_local(v))
+                        .map(|v| {
+                            closenv.push(ClosureEnv {
+                                name: v.to_string(),
+                                val: env.borrow().lookup_local(v),
+                            })
+                        })
+                        .count();
                     FUNC_NAME
                         .lock()
                         .unwrap()
@@ -83,7 +94,7 @@ pub fn interp_exp(
         }
         Thing(box data) => {
             if let ValType::Str(v) = interp_exp(input, data, Rc::clone(&env)) {
-                env.borrow().lookup(&v, true)
+                env.borrow().lookup(&v)
             } else {
                 interp_error("Thing error, illegal variable")
             }
@@ -102,7 +113,7 @@ pub fn interp_exp(
         Judge(op, box value) => {
             let val = interp_exp(input, value, Rc::clone(&env));
             match op.as_str() {
-                "isname" => ValType::Boolean(env.borrow().exist(&val.to_string())),
+                "isname" => ValType::Boolean(env.borrow().exist_local(&val.to_string())),
                 "isnumber" => ValType::Boolean(is_num(val.to_string().as_str())),
                 "isword" => ValType::Boolean(val.is_string()),
                 "islist" => ValType::Boolean(val.is_list()),
@@ -207,7 +218,7 @@ pub fn interp_exp(
                 func = env.borrow().lookup_global(&op);
             }
 
-            if let ValType::List(_, ListType::Function(func_params, func_body)) = func {
+            if let ValType::List(_, ListType::Function(closenv, func_params, func_body)) = func {
                 let mut params = VecDeque::new();
                 let func_body = vec2str(&func_body);
                 exprs
