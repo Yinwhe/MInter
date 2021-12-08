@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:12:25
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-20 22:29:08
+ * @LastEditTime: 2021-12-08 21:12:04
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -25,7 +25,7 @@ pub use crate::syntax::SymTable;
 
 use ansi_term::Color;
 use std::cell::RefCell;
-use std::io::{BufRead, Write};
+use std::io::Write;
 use std::process::exit;
 use std::rc::Rc;
 
@@ -39,29 +39,22 @@ fn main() {
     let file = std::env::args().nth(1);
     match file {
         Some(filename) => {
-            let mut input = Input::file(&filename).unwrap().lines();
-            loop {
-                let exps = parse(&mut input);
-                if exps.is_empty() {
-                    exit(0)
-                }
-                exps.into_iter()
-                    .map(|exp| interp_exp(&mut input, exp, Rc::clone(&global)))
-                    .last();
+            let mut input = Input::file(&filename);
+            while let Some(expr) = parse(&mut input) {
+                interp_exp(&mut input, expr, Rc::clone(&global));
             }
+            exit(0)
         }
         None => {
             let stdin = std::io::stdin();
-            let mut input = Input::console(&stdin).lines();
+            let mut input = Input::console(&stdin);
             loop {
                 print!("{}", Color::Green.paint("User>"));
                 std::io::stdout()
                     .flush()
                     .expect("Fatal error! Stdout flush fails!");
-                parse(&mut input)
-                    .into_iter()
-                    .map(|exp| interp_exp(&mut input, exp, Rc::clone(&global)))
-                    .last();
+                let exp = parse(&mut input).unwrap();
+                interp_exp(&mut input, exp, Rc::clone(&global));
             }
         }
     }

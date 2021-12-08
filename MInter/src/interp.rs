@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-26 22:46:43
+ * @LastEditTime: 2021-12-08 21:25:18
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -14,22 +14,21 @@ use ansi_term::Color;
 use ordered_float::OrderedFloat;
 use std::cell::RefCell;
 use std::collections::{HashSet, VecDeque};
-use std::io::BufRead;
 use std::process::exit;
 use std::rc::Rc;
 
 pub fn interpretor(
-    input: &mut std::io::Lines<Input<'_>>,
+    input: &mut Input,
     env: Rc<RefCell<SymTable<String, ValType>>>,
 ) -> ValType {
     use crate::parser::parse;
 
     let mut res = ValType::Null;
-    for exp in parse(input) {
-        res = interp_exp(input, exp, Rc::clone(&env));
+    while let Some(expr) = parse(input) {
+        res = interp_exp(input, expr, Rc::clone(&env));
         if res.is_ret_value() {
             return res.get_ret_value();
-        }
+        } 
     }
     res
 }
@@ -40,7 +39,7 @@ fn interp_error(content: &str) -> ValType {
 }
 
 pub fn interp_exp(
-    input: &mut std::io::Lines<Input<'_>>,
+    input: &mut Input,
     expr: Expr,
     env: Rc<RefCell<SymTable<String, ValType>>>,
 ) -> ValType {
@@ -51,13 +50,14 @@ pub fn interp_exp(
         Var(x) => env.borrow().lookup(&x),
         Make(box x, box e) => {
             if let ValType::Str(x) = interp_exp(input, x, Rc::clone(&env)) {
-                let val = interp_exp(input, e, Rc::clone(&env));
+                let mut val = interp_exp(input, e, Rc::clone(&env));
                 // println!("Debug - {:?}", val);
 
-                if let ValType::List(_, ListType::Function(closenv, params, body)) = &val {
-                    println!("Debug - It's Func!\n body: {}", vec2str(body));
+                if let ValType::List(_, ListType::Function(closenv, params, body)) = &mut val {
+                    // println!("Debug - It's Func!\n body: {}\n", vec2str(body));
                     let mut set = HashSet::new();
-                    body.iter().map(|v| v.find_val_in_list(set)).count();
+                    body.iter().map(|v| v.find_val_in_list(&mut set)).count();
+                    // println!("Debug - set content: {:?}", set);
                     set.iter()
                         .filter(|v| env.borrow().exist_local(v))
                         .map(|v| {
@@ -67,6 +67,7 @@ pub fn interp_exp(
                             })
                         })
                         .count();
+                    // println!("Debug - closenv: {:?}", closenv);
                     FUNC_NAME
                         .lock()
                         .unwrap()
@@ -103,7 +104,7 @@ pub fn interp_exp(
             if let ValType::List(list, _) = interp_exp(input, cmd, Rc::clone(&env)) {
                 let content = vec2str(&list);
                 let mut input =
-                    Input::string(&content.trim_matches(|c| c == '[' || c == ']')).lines();
+                    Input::string(&content.trim_matches(|c| c == '[' || c == ']'));
 
                 interpretor(&mut input, Rc::clone(&env))
             } else {
@@ -190,7 +191,7 @@ pub fn interp_exp(
             }
         }
         Read() => {
-            if let Some(Ok(str)) = input.next() {
+            if let Some(str) = input.next_word() {
                 ValType::Str(str)
             } else {
                 interp_error("Read error")
@@ -208,6 +209,7 @@ pub fn interp_exp(
         }
 
         Function(op, exprs) => {
+            // println!("Debug - run func: {}", op);
             let cenv = Rc::new(RefCell::new(SymTable::new(
                 Some(env.borrow().get_global()),
                 None,
@@ -215,7 +217,7 @@ pub fn interp_exp(
 
             let func: ValType;
             {
-                func = env.borrow().lookup_global(&op);
+                func = env.borrow().lookup_local(&op);
             }
 
             if let ValType::List(_, ListType::Function(closenv, func_params, func_body)) = func {
@@ -225,8 +227,11 @@ pub fn interp_exp(
                     .into_iter()
                     .map(|expr| params.push_back(interp_exp(input, expr, Rc::clone(&env))))
                     .count();
+                closenv
+                    .into_iter()
+                    .map(|c| cenv.borrow_mut().bind(c.name, c.val))
+                    .count();
                 func_params
-                    .to_owned()
                     .into_iter()
                     .map(|param_name| {
                         cenv.borrow_mut()
@@ -235,7 +240,7 @@ pub fn interp_exp(
                     .count();
 
                 let mut cinput =
-                    Input::string(&func_body.trim_matches(|c| c == '[' || c == ']')).lines();
+                    Input::string(&func_body.trim_matches(|c| c == '[' || c == ']'));
 
                 interpretor(&mut cinput, Rc::clone(&cenv))
             } else {

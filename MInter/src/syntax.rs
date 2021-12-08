@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-11-26 22:46:30
+ * @LastEditTime: 2021-12-08 19:30:49
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -21,9 +21,9 @@ use std::rc::Rc;
 use std::sync::Mutex;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub struct ClosureEnv{
-    name: String,
-    val: ValType
+pub struct ClosureEnv {
+    pub name: String,
+    pub val: ValType,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -94,8 +94,16 @@ impl ValType {
         }
     }
 
-    pub fn find_val_in_list(&self, set: HashSet<String>) {
-        unimplemented!()
+    pub fn find_val_in_list(&self, set: &mut HashSet<String>) {
+        if let List(l, _) = self {
+            l.iter().map(|v| v.find_val_in_list(set)).count();
+        } else if let Str(s) = self {
+            if s.starts_with(":") {
+                set.insert(s[1..].to_owned());
+            }
+        } else {
+            panic!("find_val_in_list error, elements invalid")
+        }
     }
 }
 
@@ -194,8 +202,8 @@ where
     H: Eq + Hash + Display + Clone,
 {
     local: HashMap<T, H>,
-    plocal: Option<Rc<RefCell<SymTable<T, H>>>>,
     global: Option<Rc<RefCell<SymTable<T, H>>>>,
+    context: Option<Rc<RefCell<SymTable<T, H>>>>,
 }
 
 impl<T, H> SymTable<T, H>
@@ -205,12 +213,12 @@ where
 {
     pub fn new(
         global: Option<Rc<RefCell<SymTable<T, H>>>>,
-        plocal: Option<Rc<RefCell<SymTable<T, H>>>>,
+        context: Option<Rc<RefCell<SymTable<T, H>>>>,
     ) -> Self {
         SymTable {
             local: HashMap::new(),
-            plocal: plocal,
             global: global,
+            context: context,
         }
     }
 
@@ -226,27 +234,19 @@ where
         self.local.get(x).is_some()
     }
 
-    pub fn exist_plocal(&self, x: &T) -> bool {
-        self.plocal.as_ref().unwrap().borrow().exist_local(x)
+    pub fn exist_context(&self, x: &T) -> bool {
+        self.context.as_ref().unwrap().borrow().exist_local(x)
     }
 
     pub fn exist_global(&self, x: &T) -> bool {
-        self.global.as_ref().unwrap().borrow().exist_local(x)0000000
-
-
-
-
-
-
-
-         
+        self.global.as_ref().unwrap().borrow().exist_local(x)
     }
 
     pub fn lookup(&self, x: &T) -> H {
         if let Some(h) = self.local.get(x) {
             h.clone()
-        } else if self.plocal.is_some() {
-            self.lookup_plocal(x)
+        } else if self.context.is_some() {
+            self.lookup_context(x)
         } else if self.global.is_some() {
             self.lookup_global(x)
         } else {
@@ -262,8 +262,8 @@ where
         }
     }
 
-    pub fn lookup_plocal(&self, x: &T) -> H {
-        self.plocal.as_ref().unwrap().borrow().lookup_local(x)
+    pub fn lookup_context(&self, x: &T) -> H {
+        self.context.as_ref().unwrap().borrow().lookup_local(x)
     }
 
     pub fn lookup_global(&self, x: &T) -> H {
