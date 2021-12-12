@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-12-08 21:25:18
+ * @LastEditTime: 2021-12-12 23:21:35
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -17,10 +17,7 @@ use std::collections::{HashSet, VecDeque};
 use std::process::exit;
 use std::rc::Rc;
 
-pub fn interpretor(
-    input: &mut Input,
-    env: Rc<RefCell<SymTable<String, ValType>>>,
-) -> ValType {
+pub fn interpretor(input: &mut Input, env: Rc<RefCell<SymTable<String, ValType>>>) -> ValType {
     use crate::parser::parse;
 
     let mut res = ValType::Null;
@@ -28,7 +25,7 @@ pub fn interpretor(
         res = interp_exp(input, expr, Rc::clone(&env));
         if res.is_ret_value() {
             return res.get_ret_value();
-        } 
+        }
     }
     res
 }
@@ -46,28 +43,32 @@ pub fn interp_exp(
     use crate::parser::is_num;
 
     match expr {
-        Value(v) => v,
+        Value(mut val) => {
+            if let ValType::List(_, ListType::Function(closenv, _, body)) = &mut val {
+                println!("Debug - It's Func!\n body: {}\n", vec2str(body));
+                let mut set = HashSet::new();
+                body.iter().map(|v| v.find_val_in_list(&mut set)).count();
+                println!("Debug - set content: {:?}", set);
+                set.iter()
+                    .filter(|v| env.borrow().exist_local(v))
+                    .map(|v| {
+                        closenv.push(ClosureEnv {
+                            name: v.to_string(),
+                            val: env.borrow().lookup_local(v),
+                        })
+                    })
+                    .count();
+                println!("Debug - closenv: {:?}", closenv);
+            }
+            val
+        }
         Var(x) => env.borrow().lookup(&x),
         Make(box x, box e) => {
             if let ValType::Str(x) = interp_exp(input, x, Rc::clone(&env)) {
                 let mut val = interp_exp(input, e, Rc::clone(&env));
                 // println!("Debug - {:?}", val);
 
-                if let ValType::List(_, ListType::Function(closenv, params, body)) = &mut val {
-                    // println!("Debug - It's Func!\n body: {}\n", vec2str(body));
-                    let mut set = HashSet::new();
-                    body.iter().map(|v| v.find_val_in_list(&mut set)).count();
-                    // println!("Debug - set content: {:?}", set);
-                    set.iter()
-                        .filter(|v| env.borrow().exist_local(v))
-                        .map(|v| {
-                            closenv.push(ClosureEnv {
-                                name: v.to_string(),
-                                val: env.borrow().lookup_local(v),
-                            })
-                        })
-                        .count();
-                    // println!("Debug - closenv: {:?}", closenv);
+                if let ValType::List(_, ListType::Function(_, params, _)) = &mut val {
                     FUNC_NAME
                         .lock()
                         .unwrap()
@@ -90,7 +91,7 @@ pub fn interp_exp(
         }
         Print(box data) => {
             let val = interp_exp(input, data, Rc::clone(&env));
-            println!("{}", val);
+            println!("{:?}", val);
             val
         }
         Thing(box data) => {
@@ -103,8 +104,7 @@ pub fn interp_exp(
         Run(box cmd) => {
             if let ValType::List(list, _) = interp_exp(input, cmd, Rc::clone(&env)) {
                 let content = vec2str(&list);
-                let mut input =
-                    Input::string(&content.trim_matches(|c| c == '[' || c == ']'));
+                let mut input = Input::string(&content.trim_matches(|c| c == '[' || c == ']'));
 
                 interpretor(&mut input, Rc::clone(&env))
             } else {
@@ -197,7 +197,11 @@ pub fn interp_exp(
                 interp_error("Read error")
             }
         }
-        Return(box expr) => Retv(Box::new(interp_exp(input, expr, Rc::clone(&env)))),
+        Return(box expr) => {
+            let res = Retv(Box::new(interp_exp(input, expr, Rc::clone(&env))));
+            println!("Debug - Return val: {:?}", res);
+            res
+        }
         Export(box expr) => {
             if let ValType::Str(s) = interp_exp(input, expr, Rc::clone(&env)) {
                 env.borrow_mut().export(s);
@@ -239,8 +243,7 @@ pub fn interp_exp(
                     })
                     .count();
 
-                let mut cinput =
-                    Input::string(&func_body.trim_matches(|c| c == '[' || c == ']'));
+                let mut cinput = Input::string(&func_body.trim_matches(|c| c == '[' || c == ']'));
 
                 interpretor(&mut cinput, Rc::clone(&cenv))
             } else {
