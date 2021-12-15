@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:23:44
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-12-16 00:26:55
+ * @LastEditTime: 2021-12-16 00:46:35
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -22,7 +22,7 @@ pub enum Sexpr {
     List(Vec<Sexpr>),
 }
 
-fn is_valid_op(key: &String, env: Rc<RefCell<SymTable<String, ValType>>>) -> Option<i32> {
+fn is_valid_op(key: &String, env: Rc<RefCell<SymTable>>) -> Option<i32> {
     if let Some(&n) = KEYWORD.get(key.as_str()) {
         Some(n)
     } else {
@@ -30,7 +30,7 @@ fn is_valid_op(key: &String, env: Rc<RefCell<SymTable<String, ValType>>>) -> Opt
     }
 }
 
-fn is_func(sexpr: Option<&Sexpr>, env: Rc<RefCell<SymTable<String, ValType>>>) -> Option<String> {
+fn is_func(sexpr: Option<&Sexpr>, env: Rc<RefCell<SymTable>>) -> Option<String> {
     if let Some(Atom(op)) = sexpr {
         env.borrow().is_func(op).map(|_| op.to_owned())
     } else {
@@ -46,7 +46,7 @@ fn parse_error(content: &str) -> Expr {
 // Read until a command line is complete
 pub fn parse_string(
     input: &mut Input,
-    env: Rc<RefCell<SymTable<String, ValType>>>,
+    env: Rc<RefCell<SymTable>>,
 ) -> Option<Sexpr> {
     let mut stack = vec![];
     let mut list = vec![];
@@ -309,6 +309,6 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
     }
 }
 
-pub fn parse(input: &mut Input, env: Rc<RefCell<SymTable<String, ValType>>>) -> Option<Expr> {
+pub fn parse(input: &mut Input, env: Rc<RefCell<SymTable>>) -> Option<Expr> {
     parse_string(input, Rc::clone(&env)).map(|sexpr| parse_sexpr(&sexpr))
 }

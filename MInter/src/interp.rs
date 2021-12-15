@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-12-16 00:27:12
+ * @LastEditTime: 2021-12-16 00:42:50
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -17,7 +17,7 @@ use std::collections::{HashSet, VecDeque};
 use std::process::exit;
 use std::rc::Rc;
 
-pub fn interpretor(input: &mut Input, env: Rc<RefCell<SymTable<String, ValType>>>) -> ValType {
+pub fn interpretor(input: &mut Input, env: Rc<RefCell<SymTable>>) -> ValType {
     use crate::parser::parse;
 
     let mut res = ValType::Null;
@@ -38,7 +38,7 @@ fn interp_error(content: &str) -> ValType {
 pub fn interp_exp(
     input: &mut Input,
     expr: Expr,
-    env: Rc<RefCell<SymTable<String, ValType>>>,
+    env: Rc<RefCell<SymTable>>,
 ) -> ValType {
     use crate::parser::is_num;
 

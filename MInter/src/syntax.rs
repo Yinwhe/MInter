@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-12-16 00:33:00
+ * @LastEditTime: 2021-12-16 00:45:13
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -15,7 +15,7 @@ use lazy_static::lazy_static;
 use ordered_float::OrderedFloat;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::fmt::{self, Display};
+use std::fmt;
 use std::hash::Hash;
 use std::rc::Rc;
 use std::sync::Mutex;
@@ -78,11 +78,11 @@ impl ValType {
         }
     }
 
-    pub fn list_is_func(&self) -> bool {
-        if let List(_, ListType::Function(_, _, _)) = self {
-            true
+    pub fn list_is_func(&self) -> Option<i32> {
+        if let List(_, ListType::Function(_, params, _)) = self {
+            Some(params.len() as i32)
         } else {
-            false
+            None
         }
     }
 
@@ -209,25 +209,17 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-pub struct SymTable<T, H>
-where
-    T: Eq + Hash + Display + Clone,
-    H: Eq + Hash + Display + Clone,
-{
-    local: HashMap<T, H>,
-    global: Option<Rc<RefCell<SymTable<T, H>>>>,
-    context: Option<Rc<RefCell<SymTable<T, H>>>>,
+pub struct SymTable {
+    local: HashMap<String, ValType>,
+    global: Option<Rc<RefCell<SymTable>>>,
+    context: Option<Rc<RefCell<SymTable>>>,
     func: HashMap<String, i32>,
 }
 
-impl<T, H> SymTable<T, H>
-where
-    T: Eq + Hash + Display + Clone,
-    H: Eq + Hash + Display + Clone,
-{
+impl SymTable {
     pub fn new(
-        global: Option<Rc<RefCell<SymTable<T, H>>>>,
-        context: Option<Rc<RefCell<SymTable<T, H>>>>,
+        global: Option<Rc<RefCell<SymTable>>>,
+        context: Option<Rc<RefCell<SymTable>>>,
     ) -> Self {
         SymTable {
             local: HashMap::new(),
@@ -237,27 +229,27 @@ where
         }
     }
 
-    pub fn set_global(&mut self, global: Option<Rc<RefCell<SymTable<T, H>>>>) {
+    pub fn set_global(&mut self, global: Option<Rc<RefCell<SymTable>>>) {
         self.global = global
     }
 
-    pub fn get_global(&self) -> Rc<RefCell<SymTable<T, H>>> {
+    pub fn get_global(&self) -> Rc<RefCell<SymTable>> {
         Rc::clone(self.global.as_ref().unwrap())
     }
 
-    pub fn exist_local(&self, x: &T) -> bool {
+    pub fn exist_local(&self, x: &String) -> bool {
         self.local.get(x).is_some()
     }
 
-    pub fn exist_context(&self, x: &T) -> bool {
+    pub fn exist_context(&self, x: &String) -> bool {
         self.context.as_ref().unwrap().borrow().exist_local(x)
     }
 
-    pub fn exist_global(&self, x: &T) -> bool {
+    pub fn exist_global(&self, x: &String) -> bool {
         self.global.as_ref().unwrap().borrow().exist_local(x)
     }
 
-    pub fn lookup(&self, x: &T) -> H {
+    pub fn lookup(&self, x: &String) -> ValType {
         if let Some(h) = self.local.get(x) {
             h.clone()
         } else if self.context.is_some() {
@@ -269,28 +261,32 @@ where
         }
     }
 
-    pub fn lookup_local(&self, x: &T) -> Option<H> {
+    pub fn lookup_local(&self, x: &String) -> Option<ValType> {
         self.local.get(x).map(|v| v.to_owned())
     }
 
-    pub fn lookup_context(&self, x: &T) -> Option<H> {
+    pub fn lookup_context(&self, x: &String) -> Option<ValType> {
         self.context.as_ref().unwrap().borrow().lookup_local(x)
     }
 
-    pub fn lookup_global(&self, x: &T) -> Option<H> {
+    pub fn lookup_global(&self, x: &String) -> Option<ValType> {
         self.global.as_ref().unwrap().borrow().lookup_local(x)
     }
 
-    pub fn bind(&mut self, var: T, val: H) -> Option<H> {
+    pub fn bind(&mut self, var: String, val: ValType) -> Option<ValType> {
+        if let Some(param_num) = val.list_is_func() {
+            self.add_func(&var, param_num);
+        }
         self.local.insert(var, val)
     }
 
-    pub fn export(&mut self, var: T) -> Option<H> {
+    pub fn export(&mut self, var: String) -> Option<ValType> {
         let val = self.lookup_local(&var).unwrap();
         self.global.as_ref().unwrap().borrow_mut().bind(var, val)
     }
 
-    pub fn unbind(&mut self, var: T) -> Option<H> {
+    pub fn unbind(&mut self, var: String) -> Option<ValType> {
+        self.remove_func(&var);
         self.local.remove(&var)
     }
 
