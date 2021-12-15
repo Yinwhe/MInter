@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-12-12 23:21:35
+ * @LastEditTime: 2021-12-16 00:27:12
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -21,7 +21,7 @@ pub fn interpretor(input: &mut Input, env: Rc<RefCell<SymTable<String, ValType>>
     use crate::parser::parse;
 
     let mut res = ValType::Null;
-    while let Some(expr) = parse(input) {
+    while let Some(expr) = parse(input, Rc::clone(&env)) {
         res = interp_exp(input, expr, Rc::clone(&env));
         if res.is_ret_value() {
             return res.get_ret_value();
@@ -54,7 +54,7 @@ pub fn interp_exp(
                     .map(|v| {
                         closenv.push(ClosureEnv {
                             name: v.to_string(),
-                            val: env.borrow().lookup_local(v),
+                            val: env.borrow().lookup_local(v).unwrap(),
                         })
                     })
                     .count();
@@ -221,7 +221,7 @@ pub fn interp_exp(
 
             let func: ValType;
             {
-                func = env.borrow().lookup_local(&op);
+                func = env.borrow().lookup_local(&op).unwrap();
             }
 
             if let ValType::List(_, ListType::Function(closenv, func_params, func_body)) = func {

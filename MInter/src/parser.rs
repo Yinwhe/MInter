@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:23:44
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-12-12 23:10:21
+ * @LastEditTime: 2021-12-16 00:26:55
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -13,6 +13,8 @@ use crate::syntax::*;
 use crate::Input;
 use ansi_term::Color;
 use regex::Regex;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Sexpr {
@@ -20,17 +22,17 @@ pub enum Sexpr {
     List(Vec<Sexpr>),
 }
 
-fn is_valid_op(key: &str) -> Option<i32> {
-    if let Some(&n) = KEYWORD.get(key) {
+fn is_valid_op(key: &String, env: Rc<RefCell<SymTable<String, ValType>>>) -> Option<i32> {
+    if let Some(&n) = KEYWORD.get(key.as_str()) {
         Some(n)
     } else {
-        FUNC_NAME.lock().unwrap().get(key).map(|n| n.to_owned())
+        env.borrow().is_func(key)
     }
 }
 
-fn is_func(sexpr: Option<&Sexpr>) -> Option<String> {
+fn is_func(sexpr: Option<&Sexpr>, env: Rc<RefCell<SymTable<String, ValType>>>) -> Option<String> {
     if let Some(Atom(op)) = sexpr {
-        FUNC_NAME.lock().unwrap().get(op).map(|_| op.to_owned())
+        env.borrow().is_func(op).map(|_| op.to_owned())
     } else {
         None
     }
@@ -42,7 +44,10 @@ fn parse_error(content: &str) -> Expr {
 }
 
 // Read until a command line is complete
-pub fn parse_string(input: &mut Input) -> Option<Sexpr> {
+pub fn parse_string(
+    input: &mut Input,
+    env: Rc<RefCell<SymTable<String, ValType>>>,
+) -> Option<Sexpr> {
     let mut stack = vec![];
     let mut list = vec![];
 
@@ -56,7 +61,7 @@ pub fn parse_string(input: &mut Input) -> Option<Sexpr> {
     let mut valid_op: bool;
 
     while let Some(word) = &input.next_word() {
-        if let Some(n) = is_valid_op(word) {
+        if let Some(n) = is_valid_op(word, Rc::clone(&env)) {
             valid_op = true;
 
             if braket_num > 0 {
@@ -233,7 +238,7 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
             }
         }
         List(v) => {
-            if let Some(func_name) = is_func(v.first()) {
+            if let Some(func_name) = is_func(v.first(), en) {
                 // Function
                 Function(
                     func_name,
@@ -304,6 +309,6 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
     }
 }
 
-pub fn parse(input: &mut Input) -> Option<Expr> {
-    parse_string(input).map(|sexpr| parse_sexpr(&sexpr))
+pub fn parse(input: &mut Input, env: Rc<RefCell<SymTable<String, ValType>>>) -> Option<Expr> {
+    parse_string(input, Rc::clone(&env)).map(|sexpr| parse_sexpr(&sexpr))
 }

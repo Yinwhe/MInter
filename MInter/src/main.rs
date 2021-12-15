@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:12:25
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-12-08 21:12:04
+ * @LastEditTime: 2021-12-15 23:27:28
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -40,7 +40,7 @@ fn main() {
     match file {
         Some(filename) => {
             let mut input = Input::file(&filename);
-            while let Some(expr) = parse(&mut input) {
+            while let Some(expr) = parse(&mut input, Rc::clone(&global)) {
                 interp_exp(&mut input, expr, Rc::clone(&global));
             }
             exit(0)
@@ -53,7 +53,7 @@ fn main() {
                 std::io::stdout()
                     .flush()
                     .expect("Fatal error! Stdout flush fails!");
-                let exp = parse(&mut input).unwrap();
+                let exp = parse(&mut input, Rc::clone(&global)).unwrap();
                 interp_exp(&mut input, exp, Rc::clone(&global));
             }
         }

@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:16:34
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-12-12 22:19:53
+ * @LastEditTime: 2021-12-16 00:33:00
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -78,6 +78,14 @@ impl ValType {
         }
     }
 
+    pub fn list_is_func(&self) -> bool {
+        if let List(_, ListType::Function(_, _, _)) = self {
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn is_ret_value(&self) -> bool {
         if let Retv(_) = self {
             true
@@ -98,8 +106,13 @@ impl ValType {
         if let List(l, _) = self {
             l.iter().map(|v| v.find_val_in_list(set)).count();
         } else if let Str(s) = self {
-            if s.starts_with(":") {
-                set.insert(s[1..].to_owned());
+            let word = if s.starts_with(":") {
+                s[1..].to_string()
+            } else {
+                s.to_string()
+            };
+            if KEYWORD.get(word.as_str()).is_none() {
+                set.insert(word);
             }
         } else {
             panic!("find_val_in_list error, elements invalid")
@@ -204,6 +217,7 @@ where
     local: HashMap<T, H>,
     global: Option<Rc<RefCell<SymTable<T, H>>>>,
     context: Option<Rc<RefCell<SymTable<T, H>>>>,
+    func: HashMap<String, i32>,
 }
 
 impl<T, H> SymTable<T, H>
@@ -219,6 +233,7 @@ where
             local: HashMap::new(),
             global: global,
             context: context,
+            func: HashMap::new(),
         }
     }
 
@@ -246,27 +261,23 @@ where
         if let Some(h) = self.local.get(x) {
             h.clone()
         } else if self.context.is_some() {
-            self.lookup_context(x)
+            self.lookup_context(x).unwrap()
         } else if self.global.is_some() {
-            self.lookup_global(x)
+            self.lookup_global(x).unwrap()
         } else {
             panic!("Undefine variable {}!", x);
         }
     }
 
-    pub fn lookup_local(&self, x: &T) -> H {
-        if let Some(h) = self.local.get(x) {
-            h.clone()
-        } else {
-            panic!("Undefine variable {}!", x);
-        }
+    pub fn lookup_local(&self, x: &T) -> Option<H> {
+        self.local.get(x).map(|v| v.to_owned())
     }
 
-    pub fn lookup_context(&self, x: &T) -> H {
+    pub fn lookup_context(&self, x: &T) -> Option<H> {
         self.context.as_ref().unwrap().borrow().lookup_local(x)
     }
 
-    pub fn lookup_global(&self, x: &T) -> H {
+    pub fn lookup_global(&self, x: &T) -> Option<H> {
         self.global.as_ref().unwrap().borrow().lookup_local(x)
     }
 
@@ -275,11 +286,23 @@ where
     }
 
     pub fn export(&mut self, var: T) -> Option<H> {
-        let val = self.lookup_local(&var);
+        let val = self.lookup_local(&var).unwrap();
         self.global.as_ref().unwrap().borrow_mut().bind(var, val)
     }
 
     pub fn unbind(&mut self, var: T) -> Option<H> {
         self.local.remove(&var)
+    }
+
+    fn add_func(&mut self, func_name: &str, param_num: i32) -> Option<i32> {
+        self.func.insert(func_name.to_string(), param_num)
+    }
+
+    fn remove_func(&mut self, func_name: &str) -> Option<i32> {
+        self.func.remove(func_name)
+    }
+
+    pub fn is_func(&self, func_name: &str) -> Option<i32> {
+        self.func.get(func_name).map(|&i| i)
     }
 }
