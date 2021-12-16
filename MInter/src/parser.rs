@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:23:44
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-12-16 00:46:35
+ * @LastEditTime: 2021-12-16 10:23:24
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -30,11 +30,11 @@ fn is_valid_op(key: &String, env: Rc<RefCell<SymTable>>) -> Option<i32> {
     }
 }
 
-fn is_func(sexpr: Option<&Sexpr>, env: Rc<RefCell<SymTable>>) -> Option<String> {
+fn is_keyword(sexpr: Option<&Sexpr>) -> bool {
     if let Some(Atom(op)) = sexpr {
-        env.borrow().is_func(op).map(|_| op.to_owned())
+        KEYWORD.get(op.as_str()).is_some()
     } else {
-        None
+        false
     }
 }
 
@@ -134,7 +134,7 @@ pub fn parse_string(
             break; // Jump out of the loop
         }
     } // While
-    println!("Debug - parse string res: {:?}", list);
+    // println!("Debug - parse string res: {:?}", list);
     list.pop()
 }
 
@@ -238,13 +238,7 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
             }
         }
         List(v) => {
-            if let Some(func_name) = is_func(v.first(), en) {
-                // Function
-                Function(
-                    func_name,
-                    v.iter().skip(1).map(|sexpr| parse_sexpr(sexpr)).collect(),
-                )
-            } else {
+            if is_keyword(v.first()) {
                 match v.as_slice() {
                     // 3 parameters
                     [Atom(op), param1, param2, param3] => match op.as_str() {
@@ -304,6 +298,15 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                     },
                     _ => parse_error("Invalid syntax!"),
                 }
+
+            } else if let Some(Atom(func_name)) = v.first() {
+                // Function
+                Function(
+                    func_name.to_owned(),
+                    v.iter().skip(1).map(|sexpr| parse_sexpr(sexpr)).collect(),
+                )
+            } else {
+                parse_error("parse_sepr error, no match")
             }
         }
     }

@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-12-16 00:42:50
+ * @LastEditTime: 2021-12-16 10:23:01
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -45,10 +45,10 @@ pub fn interp_exp(
     match expr {
         Value(mut val) => {
             if let ValType::List(_, ListType::Function(closenv, _, body)) = &mut val {
-                println!("Debug - It's Func!\n body: {}\n", vec2str(body));
+                // println!("Debug - It's Func!\n body: {}\n", vec2str(body));
                 let mut set = HashSet::new();
                 body.iter().map(|v| v.find_val_in_list(&mut set)).count();
-                println!("Debug - set content: {:?}", set);
+                // println!("Debug - set content: {:?}", set);
                 set.iter()
                     .filter(|v| env.borrow().exist_local(v))
                     .map(|v| {
@@ -58,7 +58,7 @@ pub fn interp_exp(
                         })
                     })
                     .count();
-                println!("Debug - closenv: {:?}", closenv);
+                // println!("Debug - closenv: {:?}", closenv);
             }
             val
         }
@@ -91,7 +91,7 @@ pub fn interp_exp(
         }
         Print(box data) => {
             let val = interp_exp(input, data, Rc::clone(&env));
-            println!("{:?}", val);
+            println!("{}", val);
             val
         }
         Thing(box data) => {
@@ -199,7 +199,7 @@ pub fn interp_exp(
         }
         Return(box expr) => {
             let res = Retv(Box::new(interp_exp(input, expr, Rc::clone(&env))));
-            println!("Debug - Return val: {:?}", res);
+            // println!("Debug - Return val: {:?}", res);
             res
         }
         Export(box expr) => {
