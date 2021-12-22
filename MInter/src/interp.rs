@@ -2,18 +2,20 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-12-16 10:23:01
+ * @LastEditTime: 2021-12-22 11:27:27
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
 
 pub use crate::syntax::*;
 
-use crate::Input;
+use crate::{vecdeque, Input};
 use ansi_term::Color;
 use ordered_float::OrderedFloat;
 use std::cell::RefCell;
 use std::collections::{HashSet, VecDeque};
+use std::fs::File;
+use std::io::{Write, Read};
 use std::process::exit;
 use std::rc::Rc;
 
@@ -35,11 +37,7 @@ fn interp_error(content: &str) -> ValType {
     ValType::Null
 }
 
-pub fn interp_exp(
-    input: &mut Input,
-    expr: Expr,
-    env: Rc<RefCell<SymTable>>,
-) -> ValType {
+pub fn interp_exp(input: &mut Input, expr: Expr, env: Rc<RefCell<SymTable>>) -> ValType {
     use crate::parser::is_num;
 
     match expr {
@@ -62,18 +60,11 @@ pub fn interp_exp(
             }
             val
         }
-        Var(x) => env.borrow().lookup(&x),
+        Var(x) => env.borrow().lookup(&x).unwrap_or(ValType::Null),
         Make(box x, box e) => {
             if let ValType::Str(x) = interp_exp(input, x, Rc::clone(&env)) {
-                let mut val = interp_exp(input, e, Rc::clone(&env));
+                let val = interp_exp(input, e, Rc::clone(&env));
                 // println!("Debug - {:?}", val);
-
-                if let ValType::List(_, ListType::Function(_, params, _)) = &mut val {
-                    FUNC_NAME
-                        .lock()
-                        .unwrap()
-                        .insert(x.clone(), params.len() as i32);
-                }
 
                 env.borrow_mut().bind(x, val.clone());
                 val
@@ -96,7 +87,7 @@ pub fn interp_exp(
         }
         Thing(box data) => {
             if let ValType::Str(v) = interp_exp(input, data, Rc::clone(&env)) {
-                env.borrow().lookup(&v)
+                env.borrow().lookup(&v).unwrap_or(ValType::Null)
             } else {
                 interp_error("Thing error, illegal variable")
             }
@@ -104,7 +95,7 @@ pub fn interp_exp(
         Run(box cmd) => {
             if let ValType::List(list, _) = interp_exp(input, cmd, Rc::clone(&env)) {
                 let content = vec2str(&list);
-                let mut input = Input::string(&content.trim_matches(|c| c == '[' || c == ']'));
+                let mut input = Input::string(&content[1..content.len() - 1]);
 
                 interpretor(&mut input, Rc::clone(&env))
             } else {
@@ -125,6 +116,33 @@ pub fn interp_exp(
                         .is_empty(),
                 ),
                 _ => interp_error("Judge error, illegal operator"),
+            }
+        }
+        Index(op, box value) => {
+            let list = interp_exp(input, value, Rc::clone(&env));
+            if let ValType::List(mut list, _) = list {
+                match op.as_str() {
+                    "first" => list.pop_front().unwrap(),
+                    "last" => list.pop_back().unwrap(),
+                    "butfirst" => {
+                        list.pop_front();
+                        ValType::List(list, ListType::Ordinary)
+                    }
+                    "butlast" => {
+                        list.pop_back();
+                        ValType::List(list, ListType::Ordinary)
+                    }
+                    _ => interp_error("Index error, illegal operator"),
+                }
+            } else {
+                let str = list.to_string();
+                match op.as_str() {
+                    "first" => ValType::Str(str.as_bytes().first().unwrap().to_string()),
+                    "last" => ValType::Str(str.as_bytes().last().unwrap().to_string()),
+                    "butfirst" => ValType::Str(str[1..].to_owned()),
+                    "butlast" => ValType::Str(str[0..str.len() - 1].to_owned()),
+                    _ => interp_error("Index error, illegal operator"),
+                }
             }
         }
         Calc(op, box n1, box n2) => {
@@ -179,6 +197,24 @@ pub fn interp_exp(
                 interp_error("Logic error, not boolean input")
             }
         }
+        Extend(op, box l1, box l2) => {
+            let v1 = interp_exp(input, l1, Rc::clone(&env));
+            let v2 = interp_exp(input, l2, Rc::clone(&env));
+            match op.as_str() {
+                "sentence" => {
+                    let mut list = v1.to_list();
+                    list.extend(v2.to_list());
+                    ValType::List(list, ListType::Ordinary)
+                }
+                "list" => ValType::List(vecdeque![v1, v2], ListType::Ordinary),
+                "join" => {
+                    let mut list = v1.to_list();
+                    list.push_back(v2);
+                    ValType::List(list, ListType::Ordinary)
+                }
+                _ => interp_error("Extend error, illegal operator"),
+            }
+        }
         If(box b, r1, r2) => {
             if let ValType::Boolean(b) = interp_exp(input, b, Rc::clone(&env)) {
                 if b {
@@ -190,7 +226,7 @@ pub fn interp_exp(
                 interp_error("If error, condition not boolean")
             }
         }
-        Read() => {
+        Read => {
             if let Some(str) = input.next_word() {
                 ValType::Str(str)
             } else {
@@ -221,7 +257,7 @@ pub fn interp_exp(
 
             let func: ValType;
             {
-                func = env.borrow().lookup_local(&op).unwrap();
+                func = env.borrow().lookup(&op).unwrap();
             }
 
             if let ValType::List(_, ListType::Function(closenv, func_params, func_body)) = func {
@@ -243,12 +279,38 @@ pub fn interp_exp(
                     })
                     .count();
 
-                let mut cinput = Input::string(&func_body.trim_matches(|c| c == '[' || c == ']'));
+                let mut cinput = Input::string(&func_body[1..func_body.len() - 1]);
 
                 interpretor(&mut cinput, Rc::clone(&cenv))
             } else {
                 interp_error("Function error, no function found")
             }
+        }
+        Save(box filename) => {
+            let filename = interp_exp(input, filename, Rc::clone(&env)).to_string();
+            let mut file = File::create(&filename).unwrap();
+
+            for (key, val) in env.borrow().get_keys_values() {
+                let str = format!("make \"{} {}\n", key, val.to_origin());
+                file.write_all(str.as_bytes()).unwrap();
+            }
+            ValType::Str(filename)
+        }
+        Load(box filename) => {
+            let filename = interp_exp(input, filename, Rc::clone(&env)).to_string();
+            let mut file = File::open(&filename).unwrap();
+
+            let mut content = String::new();
+            file.read_to_string(&mut content).unwrap();
+
+            let mut input = Input::string(&content);
+            interpretor(&mut input, Rc::clone(&env));
+
+            ValType::Boolean(true)
+        }
+        Erall => {
+            env.borrow_mut().clear_all();
+            ValType::Boolean(true)
         }
         Nop => ValType::Null,
         Exit => {

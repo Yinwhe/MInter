@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:12:25
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-12-15 23:27:28
+ * @LastEditTime: 2021-12-22 10:25:45
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -32,7 +32,6 @@ use std::rc::Rc;
 fn main() {
     use crate::interp::interp_exp;
     use crate::parser::parse;
-
     let global = Rc::new(RefCell::new(SymTable::new(None, None)));
     global.borrow_mut().set_global(Some(Rc::clone(&global)));
 

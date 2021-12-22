@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-09-24 11:23:44
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-12-16 10:23:24
+ * @LastEditTime: 2021-12-22 10:49:34
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -11,9 +11,11 @@ pub use Sexpr::{Atom, List};
 
 use crate::syntax::*;
 use crate::Input;
+use crate::vecdeque;
 use ansi_term::Color;
 use regex::Regex;
 use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::rc::Rc;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -23,11 +25,10 @@ pub enum Sexpr {
 }
 
 fn is_valid_op(key: &String, env: Rc<RefCell<SymTable>>) -> Option<i32> {
-    if let Some(&n) = KEYWORD.get(key.as_str()) {
-        Some(n)
-    } else {
-        env.borrow().is_func(key)
-    }
+    KEYWORD
+        .get(key.as_str())
+        .map(|n| n.to_owned())
+        .or(env.borrow().is_func(key))
 }
 
 fn is_keyword(sexpr: Option<&Sexpr>) -> bool {
@@ -44,10 +45,7 @@ fn parse_error(content: &str) -> Expr {
 }
 
 // Read until a command line is complete
-pub fn parse_string(
-    input: &mut Input,
-    env: Rc<RefCell<SymTable>>,
-) -> Option<Sexpr> {
+pub fn parse_string(input: &mut Input, env: Rc<RefCell<SymTable>>) -> Option<Sexpr> {
     let mut stack = vec![];
     let mut list = vec![];
 
@@ -138,51 +136,32 @@ pub fn parse_string(
     list.pop()
 }
 
-pub fn is_num(s: &str) -> bool {
-    let mut x = s;
-    if s.starts_with("-") {
-        x = &s[1..];
-    }
-    !x.is_empty() && x.chars().find(|&c| !(c.is_digit(10) || c == '.')).is_none()
-}
-
-fn is_literal(s: &str) -> bool {
-    s.starts_with("\"")
-}
-fn is_var(s: &str) -> bool {
-    s.starts_with(":")
-}
-
-fn is_list(s: &str) -> bool {
-    s.starts_with("[")
-}
-
-fn parse_list(slist: &str) -> Vec<ValType> {
-    let mut stack = vec![];
-    let mut list = vec![];
+fn parse_list(slist: &str) -> VecDeque<ValType> {
+    let mut stack = vecdeque![];
+    let mut list = vecdeque![];
     let mut word = "".to_string();
     let mut word_flag = false;
 
     for c in slist.chars() {
         match c {
             '[' => {
-                stack.push(list);
-                list = vec![];
+                stack.push_back(list);
+                list = vecdeque![];
             }
             ']' => {
                 if word_flag {
                     word_flag = false;
-                    list.push(ValType::Str(word.clone()));
+                    list.push_back(ValType::Str(word.clone()));
                     word.clear();
                 }
-                let mut nlist = stack.pop().unwrap();
-                nlist.push(ValType::List(list, ListType::Ordinary));
+                let mut nlist = stack.pop_back().unwrap();
+                nlist.push_back(ValType::List(list, ListType::Ordinary));
                 list = nlist;
             }
             ' ' => {
                 if word_flag {
                     word_flag = false;
-                    list.push(ValType::Str(word.clone()));
+                    list.push_back(ValType::Str(word.clone()));
                     word.clear();
                 }
             }
@@ -193,7 +172,7 @@ fn parse_list(slist: &str) -> Vec<ValType> {
         }
     }
 
-    if let ValType::List(l, _) = list.pop().unwrap() {
+    if let ValType::List(l, _) = list.pop_back().unwrap() {
         l
     } else {
         panic!("parse list fatal error");
@@ -222,6 +201,33 @@ fn solve_list(s: &str) -> ValType {
     }
 }
 
+pub fn is_num(s: &str) -> bool {
+    let mut x = s;
+    if s.starts_with("-") {
+        x = &s[1..];
+    }
+    !x.is_empty() && x.chars().find(|&c| !(c.is_digit(10) || c == '.')).is_none()
+}
+
+fn is_literal(s: &str) -> bool {
+    s.starts_with("\"")
+}
+fn is_var(s: &str) -> bool {
+    s.starts_with(":")
+}
+
+fn is_list(s: &str) -> bool {
+    s.starts_with("[")
+}
+
+fn is_bool(s: &str) -> bool {
+    if s == "true" || s == "false" {
+        true
+    } else {
+        false
+    }
+}
+
 pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
     match sexpr {
         Atom(s) => {
@@ -231,6 +237,8 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                 Value(ValType::Str(s[1..].to_string()))
             } else if is_list(s) {
                 Value(solve_list(s))
+            } else if is_bool(s) {
+                Value(ValType::Boolean(s == "true"))
             } else if is_var(s) {
                 Var(s[1..].to_string())
             } else {
@@ -254,6 +262,11 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                         "make" => {
                             Make(Box::new(parse_sexpr(param1)), Box::new(parse_sexpr(param2)))
                         }
+                        "sentence" | "list" | "join" => Extend(
+                            op.to_string(),
+                            Box::new(parse_sexpr(param1)),
+                            Box::new(parse_sexpr(param2)),
+                        ),
                         "add" | "sub" | "mul" | "div" | "mod" => Calc(
                             op.to_string(),
                             Box::new(parse_sexpr(param1)),
@@ -277,6 +290,8 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                         "thing" => Thing(Box::new(parse_sexpr(param))),
                         "erase" => Erase(Box::new(parse_sexpr(param))),
                         "run" => Run(Box::new(parse_sexpr(param))),
+                        "save" => Save(Box::new(parse_sexpr(param))),
+                        "load" => Load(Box::new(parse_sexpr(param))),
                         "not" => Logic(
                             "not".to_string(),
                             Box::new(parse_sexpr(param)),
@@ -285,6 +300,9 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                         "isname" | "isnumber" | "isword" | "islist" | "isbool" | "isempty" => {
                             Judge(op.to_string(), Box::new(parse_sexpr(param)))
                         }
+                        "first" | "last" | "butfirst" | "butlast" => {
+                            Index(op.to_string(), Box::new(parse_sexpr(param)))
+                        }
                         "return" => Return(Box::new(parse_sexpr(param))),
                         "export" => Export(Box::new(parse_sexpr(param))),
                         _ => parse_error("Unrecognized List 1"),
@@ -292,13 +310,13 @@ pub fn parse_sexpr(sexpr: &Sexpr) -> Expr {
                     // no parameters
                     [Atom(op)] => match op.as_str() {
                         "nop" => Nop,
-                        "read" => Read(),
+                        "read" => Read,
                         "exit" => Exit,
+                        "erall" => Erall,
                         _ => parse_error("Unrecognized List 0"),
                     },
                     _ => parse_error("Invalid syntax!"),
                 }
-
             } else if let Some(Atom(func_name)) = v.first() {
                 // Function
                 Function(
