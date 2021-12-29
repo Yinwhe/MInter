@@ -2,7 +2,7 @@
  * @Author: Yinwhe
  * @Date: 2021-10-10 19:45:12
  * @LastEditors: Yinwhe
- * @LastEditTime: 2021-12-22 11:27:27
+ * @LastEditTime: 2021-12-24 10:38:18
  * @Description: file information
  * @Copyright: Copyright (c) 2021
  */
@@ -15,7 +15,7 @@ use ordered_float::OrderedFloat;
 use std::cell::RefCell;
 use std::collections::{HashSet, VecDeque};
 use std::fs::File;
-use std::io::{Write, Read};
+use std::io::{Read, Write};
 use std::process::exit;
 use std::rc::Rc;
 
@@ -137,8 +137,8 @@ pub fn interp_exp(input: &mut Input, expr: Expr, env: Rc<RefCell<SymTable>>) -> 
             } else {
                 let str = list.to_string();
                 match op.as_str() {
-                    "first" => ValType::Str(str.as_bytes().first().unwrap().to_string()),
-                    "last" => ValType::Str(str.as_bytes().last().unwrap().to_string()),
+                    "first" => ValType::Str(str.chars().next().unwrap().to_string()),
+                    "last" => ValType::Str(str.chars().last().unwrap().to_string()),
                     "butfirst" => ValType::Str(str[1..].to_owned()),
                     "butlast" => ValType::Str(str[0..str.len() - 1].to_owned()),
                     _ => interp_error("Index error, illegal operator"),
@@ -288,7 +288,7 @@ pub fn interp_exp(input: &mut Input, expr: Expr, env: Rc<RefCell<SymTable>>) -> 
         }
         Save(box filename) => {
             let filename = interp_exp(input, filename, Rc::clone(&env)).to_string();
-            let mut file = File::create(&filename).unwrap();
+            let mut file = File::create(format!("../{}", filename)).unwrap();
 
             for (key, val) in env.borrow().get_keys_values() {
                 let str = format!("make \"{} {}\n", key, val.to_origin());
@@ -298,7 +298,7 @@ pub fn interp_exp(input: &mut Input, expr: Expr, env: Rc<RefCell<SymTable>>) -> 
         }
         Load(box filename) => {
             let filename = interp_exp(input, filename, Rc::clone(&env)).to_string();
-            let mut file = File::open(&filename).unwrap();
+            let mut file = File::open(format!("../{}", filename)).unwrap();
 
             let mut content = String::new();
             file.read_to_string(&mut content).unwrap();
